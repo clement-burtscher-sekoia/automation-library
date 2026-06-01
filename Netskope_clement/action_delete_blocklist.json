@@ -18,12 +18,12 @@
       "api_token",
       "id"
     ],
-    "results": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Results",
-      "type": "object"
-    },
     "title": "Delete blocklist",
+    "type": "object"
+  },
+  "results": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Results",
     "type": "object"
   },
   "uuid": "d13cd1f1-a19a-46a8-b451-95061a091ed8"

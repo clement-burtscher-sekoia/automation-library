@@ -37,12 +37,12 @@
       "items",
       "name"
     ],
-    "results": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Results",
-      "type": "object"
-    },
     "title": "Replace blocklist",
+    "type": "object"
+  },
+  "results": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Results",
     "type": "object"
   },
   "uuid": "60cdc37e-6854-4219-bd7f-b0774a14e4e6"
