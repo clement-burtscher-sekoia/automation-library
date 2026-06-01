@@ -35,6 +35,6 @@ class AppendToBlocklistAction(NetskopeAction):
 
         return {
             "append_result": append_response,
-            "deploy_result": deploy_response,
+            # "deploy_result": deploy_response,
             "message": f"Successfully appended {len(args.items)} item(s) to blocklist",
         }
