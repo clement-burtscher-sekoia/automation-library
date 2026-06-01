@@ -17,7 +17,12 @@ class AppendToBlocklistAction(NetskopeAction):
         args = AppendToBlocklistArguments(**arguments)
 
         # Append items to the URL list
-        append_payload = {"data": {"urls": args.items}}
+        append_payload = {
+            "data": {
+                "type": "exact",
+                "urls": args.items
+            }
+        }
 
         append_response = self.execute_request(
             "PATCH", f"api/v2/policy/urllist/{args.url_list_id}/append", json=append_payload
