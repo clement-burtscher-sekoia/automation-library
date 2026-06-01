@@ -3,6 +3,7 @@ from functools import cached_property
 
 import requests
 from requests import Response
+from netskope_modules import NetskopeModule
 from sekoia_automation.action import Action
 from sekoia_automation.exceptions import ModuleConfigurationError
 
@@ -12,6 +13,7 @@ logger = get_logger()
 
 
 class NetskopeAction(Action):
+    module: NetskopeModule
 
     @cached_property
     def api_token(self):
