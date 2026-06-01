@@ -1,0 +1,27 @@
+{
+  "configuration": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Netskope_clement",
+    "type": "object",
+    "properties": {
+      "base_url": {
+        "description": "API base URL",
+        "type": "string",
+        "format": "uri",
+        "nullable": true,
+        "default": null
+      }
+    },
+    "required": [
+      "base_url"
+    ]
+  },
+  "description": "Netskope is a cybersecurity company, providing solutions to protect data in cloud apps and network security applying zero trust principles.",
+  "name": "Netskope_clement",
+  "uuid": "f54661c3-20f6-42a7-92ae-5391a2ea0a3a",
+  "slug": "netskope_clement",
+  "version": "1.12.1",
+  "categories": [
+    "Network"
+  ]
+}
