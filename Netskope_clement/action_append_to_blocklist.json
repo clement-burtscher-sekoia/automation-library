@@ -26,6 +26,11 @@
       "url_list_id",
       "items"
     ],
+    "results": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Results",
+      "type": "object"
+    },
     "title": "Append items to blocklist",
     "type": "object"
   },
