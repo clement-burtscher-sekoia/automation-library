@@ -4,6 +4,7 @@ from netskope_modules.actions.action_base import NetskopeAction
 
 
 class ReplaceBlocklistArguments(BaseModel):
+    api_token: str = Field(..., description="API token for authentication")
     url_list_id: str = Field(..., description="The ID of the URL list to replace")
     items: list[str] = Field(..., description="List of items to set in the blocklist (IPs, domains, or URLs)")
     name: str = Field(..., description="Name of the URL list")
@@ -17,6 +18,7 @@ class ReplaceBlocklistAction(NetskopeAction):
 
     def run(self, arguments: dict) -> dict:
         args = ReplaceBlocklistArguments(**arguments)
+        self.api_token = args.api_token
 
         # Replace the entire URL list
         replace_payload = {"data": {"type": args.type, "urls": args.items}, "name": args.name}

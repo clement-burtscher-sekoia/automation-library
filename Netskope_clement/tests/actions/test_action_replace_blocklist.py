@@ -50,6 +50,7 @@ def test_replace_blocklist_success(replace_action):
         )
 
         arguments = {
+            "api_token": "fake_api_token",
             "url_list_id": "456",
             "items": ["new-blocked.com", "another-blocked.com"],
             "name": "Updated Blocklist",
@@ -68,6 +69,7 @@ def test_replace_blocklist_success(replace_action):
 def test_replace_blocklist_missing_required_params(replace_action):
     """Test that replace action fails when required parameters are missing"""
     arguments = {
+        "api_token": "fake_api_token",
         "url_list_id": "456",
         "items": ["new-blocked.com"],
     }

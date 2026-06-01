@@ -16,10 +16,6 @@ class NetskopeAction(Action):
     module: NetskopeModule
 
     @cached_property
-    def api_token(self):
-        return self.module.configuration.api_token
-
-    @cached_property
     def base_url(self) -> str:
         base_url = self.module.configuration.base_url
         if not base_url:

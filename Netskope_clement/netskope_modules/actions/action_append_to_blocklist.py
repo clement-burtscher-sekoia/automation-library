@@ -4,9 +4,10 @@ from netskope_modules.actions.action_base import NetskopeAction
 
 
 class AppendToBlocklistArguments(BaseModel):
+    api_token: str = Field(..., description="API token for authentication")
     url_list_id: str = Field(..., description="The ID of the URL list to modify")
     items: list[str] = Field(..., description="List of items to append to the blocklist (IPs, domains, or URLs)")
-
+    type: str = Field("exact", description="Type of URL list (exact, regex, etc.)")
 
 class AppendToBlocklistAction(NetskopeAction):
     """
@@ -15,11 +16,12 @@ class AppendToBlocklistAction(NetskopeAction):
 
     def run(self, arguments: dict) -> dict:
         args = AppendToBlocklistArguments(**arguments)
+        self.api_token = args.api_token
 
         # Append items to the URL list
         append_payload = {
             "data": {
-                "type": "exact",
+                "type": args.type,
                 "urls": args.items
             }
         }

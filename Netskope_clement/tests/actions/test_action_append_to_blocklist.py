@@ -49,7 +49,11 @@ def test_append_to_blocklist_success(append_action):
             ],
         )
 
-        arguments = {"url_list_id": "123", "items": ["www.test.com", "malicious.com"]}
+        arguments = {
+            "api_token": "fake_api_token",
+            "url_list_id": "123",
+            "items": ["www.test.com", "malicious.com"],
+        }
 
         result = append_action.run(arguments)
 
@@ -69,7 +73,11 @@ def test_append_to_blocklist_api_error(append_action):
             json={"error": {"message": "Invalid URL list ID"}},
         )
 
-        arguments = {"url_list_id": "123", "items": ["www.test.com"]}
+        arguments = {
+            "api_token": "fake_api_token",
+            "url_list_id": "123",
+            "items": ["www.test.com"],
+        }
 
         with pytest.raises(requests.exceptions.HTTPError):
             append_action.run(arguments)
@@ -90,7 +98,11 @@ def test_deploy_error_handling(append_action):
             json={"error": {"message": "Deploy failed"}},
         )
 
-        arguments = {"url_list_id": "123", "items": ["www.test.com"]}
+        arguments = {
+            "api_token": "fake_api_token",
+            "url_list_id": "123",
+            "items": ["www.test.com"],
+        }
 
         with pytest.raises(requests.exceptions.HTTPError):
             append_action.run(arguments)
@@ -105,7 +117,11 @@ def test_api_error_in_json_response(append_action):
             json={"error": {"message": "Invalid URL format"}},
         )
 
-        arguments = {"url_list_id": "123", "items": ["invalid-url"]}
+        arguments = {
+            "api_token": "fake_api_token",
+            "url_list_id": "123",
+            "items": ["invalid-url"],
+        }
 
         with pytest.raises(ValueError, match="Netskope API returned an error: Invalid URL format"):
             append_action.run(arguments)
@@ -120,7 +136,11 @@ def test_invalid_json_response(append_action):
             text="<html>Invalid JSON Response</html>",
         )
 
-        arguments = {"url_list_id": "123", "items": ["www.test.com"]}
+        arguments = {
+            "api_token": "fake_api_token",
+            "url_list_id": "123",
+            "items": ["www.test.com"],
+        }
 
         from requests.exceptions import JSONDecodeError
 

@@ -4,6 +4,7 @@ from netskope_modules.actions.action_base import NetskopeAction
 
 
 class DeleteBlocklistArguments(BaseModel):
+    api_token: str = Field(..., description="API token for authentication")
     id: int = Field(..., description="ID of the URL list")
 
 
@@ -14,6 +15,7 @@ class DeleteBlocklistAction(NetskopeAction):
 
     def run(self, arguments: dict) -> dict:
         args = DeleteBlocklistArguments(**arguments)
+        self.api_token = args.api_token
 
         delete_response = self.execute_request("DELETE", f"api/v2/policy/urllist/{args.id}")
 

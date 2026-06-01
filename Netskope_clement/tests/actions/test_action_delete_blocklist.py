@@ -48,7 +48,10 @@ def test_delete_blocklist_success(delete_action):
             ],
         )
 
-        arguments = {"id": 123}
+        arguments = {
+            "api_token": "fake_api_token",
+            "id": 123,
+        }
 
         result = delete_action.run(arguments)
 
