@@ -2,6 +2,7 @@ import json
 from functools import cached_property
 
 import requests
+from pydantic import BaseModel, Field
 from requests import Response
 from netskope_modules import NetskopeModule
 from sekoia_automation.action import Action
@@ -12,12 +13,40 @@ from netskope_modules.logging import get_logger
 logger = get_logger()
 
 
+class NetskopeActionArguments(BaseModel):
+    api_token: str = Field(..., description="API token for authentication")
+
+
 class NetskopeAction(Action):
     module: NetskopeModule
+    _api_token: str | None = None
+
+    @property
+    def api_token(self) -> str:
+        if not self._api_token:
+            raise ModuleConfigurationError("The API token is undefined. Please set it in action arguments")
+        return self._api_token
+
+    def initialize_action_arguments(self, arguments: NetskopeActionArguments) -> None:
+        self._api_token = arguments.api_token
 
     @cached_property
     def base_url(self) -> str:
-        base_url = self.module.configuration.base_url
+        base_url = None
+
+        # Preferred path: validated module configuration model.
+        try:
+            configuration = self.module.configuration
+            if isinstance(configuration, dict):
+                base_url = configuration.get("base_url")
+            else:
+                base_url = getattr(configuration, "base_url", None)
+        except ModuleConfigurationError:
+            # Backward-compatibility path: read raw config when model validation fails.
+            raw_configuration = self.module.load_config(self.module.MODULE_CONFIGURATION_FILE_NAME, "json")
+            if isinstance(raw_configuration, dict):
+                base_url = raw_configuration.get("base_url")
+
         if not base_url:
             raise ModuleConfigurationError("The base url is undefined. Please set the url of the Netskope API")
         return base_url.rstrip("/")

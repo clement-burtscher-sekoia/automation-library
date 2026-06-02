@@ -1,10 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from netskope_modules.actions.action_base import NetskopeAction
+from netskope_modules.actions.action_base import NetskopeAction, NetskopeActionArguments
 
 
-class AppendToBlocklistArguments(BaseModel):
-    api_token: str = Field(..., description="API token for authentication")
+class AppendToBlocklistArguments(NetskopeActionArguments):
     url_list_id: str = Field(..., description="The ID of the URL list to modify")
     items: list[str] = Field(..., description="List of items to append to the blocklist (IPs, domains, or URLs)")
     type: str = Field("exact", description="Type of URL list (exact, regex, etc.)")
@@ -16,7 +15,7 @@ class AppendToBlocklistAction(NetskopeAction):
 
     def run(self, arguments: dict) -> dict:
         args = AppendToBlocklistArguments(**arguments)
-        self.api_token = args.api_token
+        self.initialize_action_arguments(args)
 
         # Append items to the URL list
         append_payload = {
@@ -35,6 +34,6 @@ class AppendToBlocklistAction(NetskopeAction):
 
         return {
             "append_result": append_response,
-            # "deploy_result": deploy_response,
+            "deploy_result": deploy_response,
             "message": f"Successfully appended {len(args.items)} item(s) to blocklist",
         }

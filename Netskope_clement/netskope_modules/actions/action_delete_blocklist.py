@@ -1,10 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from netskope_modules.actions.action_base import NetskopeAction
+from netskope_modules.actions.action_base import NetskopeAction, NetskopeActionArguments
 
 
-class DeleteBlocklistArguments(BaseModel):
-    api_token: str = Field(..., description="API token for authentication")
+class DeleteBlocklistArguments(NetskopeActionArguments):
     id: int = Field(..., description="ID of the URL list")
 
 
@@ -15,7 +14,7 @@ class DeleteBlocklistAction(NetskopeAction):
 
     def run(self, arguments: dict) -> dict:
         args = DeleteBlocklistArguments(**arguments)
-        self.api_token = args.api_token
+        self.initialize_action_arguments(args)
 
         delete_response = self.execute_request("DELETE", f"api/v2/policy/urllist/{args.id}")
 
