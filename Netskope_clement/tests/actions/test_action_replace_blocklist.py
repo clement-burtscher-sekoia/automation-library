@@ -51,29 +51,66 @@ def test_replace_blocklist_success(replace_action):
 
         arguments = {
             "api_token": "fake_api_token",
-            "url_list_id": "456",
-            "items": ["new-blocked.com", "another-blocked.com"],
-            "name": "Updated Blocklist",
-            "type": "exact",
+            "blocklist_id": "456",
+            "items": ["new-blocked.com", "another-blocked.com", "new-blocked.com"],
+            "blocklist_name": "Updated Blocklist",
+            "blocklist_type": "exact",
         }
 
         result = replace_action.run(arguments)
+        replace_request_body = mock_requests.request_history[0].json()
 
         assert result["replace_result"]["id"] == 456
         assert result["replace_result"]["name"] == "Updated Blocklist"
         assert len(result["deploy_result"]) == 1
         assert result["deploy_result"][0]["pending"] == 0
         assert "Successfully replaced blocklist with 2 item(s)" in result["message"]
+        assert replace_request_body == {
+            "data": {"type": "exact", "urls": ["another-blocked.com", "new-blocked.com"]},
+            "name": "Updated Blocklist",
+        }
 
 
 def test_replace_blocklist_missing_required_params(replace_action):
     """Test that replace action fails when required parameters are missing"""
     arguments = {
         "api_token": "fake_api_token",
-        "url_list_id": "456",
+        "blocklist_id": "456",
         "items": ["new-blocked.com"],
     }
 
     with pytest.raises(ValidationError):
-        # Missing field 'name' should cause validation error
+        # Missing field 'blocklist_name' should cause validation error
         replace_action.run(arguments)
+
+
+def test_replace_blocklist_should_not_sort_when_sort_items_false(replace_action):
+    """Test replace preserves insertion order when sort_items is false"""
+    with requests_mock.Mocker() as mock_requests:
+        mock_requests.patch(
+            "https://my.fake.netskope.com/api/v2/policy/urllist/456/replace",
+            status_code=200,
+            json={"id": 456, "name": "Updated Blocklist", "pending": 1},
+        )
+
+        mock_requests.post(
+            "https://my.fake.netskope.com/api/v2/policy/urllist/deploy",
+            status_code=200,
+            json=[{"id": 456, "pending": 0}],
+        )
+
+        arguments = {
+            "api_token": "fake_api_token",
+            "blocklist_id": "456",
+            "items": ["www.z.com", "www.a.com", "www.z.com"],
+            "blocklist_name": "Updated Blocklist",
+            "sort_items": False,
+        }
+
+        replace_action.run(arguments)
+
+        replace_request_body = mock_requests.request_history[0].json()
+        assert replace_request_body == {
+            "data": {"type": "exact", "urls": ["www.z.com", "www.a.com"]},
+            "name": "Updated Blocklist",
+        }

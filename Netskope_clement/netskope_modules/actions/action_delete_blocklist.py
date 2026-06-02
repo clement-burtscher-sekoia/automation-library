@@ -4,19 +4,20 @@ from netskope_modules.actions.action_base import NetskopeAction, NetskopeActionA
 
 
 class DeleteBlocklistArguments(NetskopeActionArguments):
-    id: int = Field(..., description="ID of the URL list")
+    blocklist_id: str = Field(..., description="The ID of the blocklist")
 
 
 class DeleteBlocklistAction(NetskopeAction):
     """
-    Mark a Netskope URL list as pending deletion and deploy the change.
+    Mark a Netskope blocklist as pending deletion and deploy the change.
     """
 
     def run(self, arguments: dict) -> dict:
         args = DeleteBlocklistArguments(**arguments)
         self.initialize_action_arguments(args)
 
-        delete_response = self.execute_request("DELETE", f"api/v2/policy/urllist/{args.id}")
+        blocklist_id = args.blocklist_id
+        delete_response = self.execute_request("DELETE", f"api/v2/policy/urllist/{blocklist_id}")
 
         # Deploy the deletion
         deploy_response = self.deploy_blocklist_changes()
@@ -24,5 +25,5 @@ class DeleteBlocklistAction(NetskopeAction):
         return {
             "delete_result": delete_response,
             "deploy_result": deploy_response,
-            "message": f"Successfully deleted blocklist {args.id}",
+            "message": f"Successfully deleted blocklist {blocklist_id}",
         }

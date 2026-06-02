@@ -7,13 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## 2026-05-27 - 1.12.1
+## 2026-06-02 - 1.12.5
 
 ### Added
 
 - Add blocklist management actions:
     - `append_to_blocklist`
     - `delete_blocklist`
+    - `get_blocklist`
     - `replace_blocklist`
 
 ## 2026-04-23 - 1.12.0

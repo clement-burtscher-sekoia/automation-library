@@ -1,7 +1,7 @@
 {
-  "description": "Delete an existing Netskope blocklist",
-  "docker_parameters": "delete_blocklist",
-  "name": "Delete Blocklist",
+  "description": "Retrieve an existing Netskope blocklist",
+  "docker_parameters": "get_blocklist",
+  "name": "Get Blocklist",
   "arguments": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "properties": {
@@ -18,7 +18,7 @@
       "api_token",
       "blocklist_id"
     ],
-    "title": "Delete blocklist",
+    "title": "Get blocklist",
     "type": "object"
   },
   "results": {
@@ -26,5 +26,5 @@
     "title": "Results",
     "type": "object"
   },
-  "uuid": "d13cd1f1-a19a-46a8-b451-95061a091ed8"
+  "uuid": "220b2400-85bf-4f2b-a99c-c2d39fa1945e"
 }

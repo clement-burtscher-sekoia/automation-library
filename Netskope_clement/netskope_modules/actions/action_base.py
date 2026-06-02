@@ -4,10 +4,10 @@ from functools import cached_property
 import requests
 from pydantic import BaseModel, Field
 from requests import Response
-from netskope_modules import NetskopeModule
 from sekoia_automation.action import Action
 from sekoia_automation.exceptions import ModuleConfigurationError
 
+from netskope_modules import NetskopeModule
 from netskope_modules.logging import get_logger
 
 logger = get_logger()
@@ -30,11 +30,51 @@ class NetskopeAction(Action):
     def initialize_action_arguments(self, arguments: NetskopeActionArguments) -> None:
         self._api_token = arguments.api_token
 
+    @staticmethod
+    def normalize_urls(items: list[str], sort_items: bool = True) -> list[str]:
+        """
+        Return a deduplicated blocklist with optional alphabetical sorting.
+        Empty values are discarded.
+        """
+        cleaned: list[str] = []
+        seen: set[str] = set()
+
+        for item in items:
+            if not item:
+                continue
+
+            normalized = item.strip()
+            if not normalized or normalized in seen:
+                continue
+
+            seen.add(normalized)
+            cleaned.append(normalized)
+
+        if sort_items:
+            return sorted(cleaned, key=str.lower)
+
+        return cleaned
+
+    @staticmethod
+    def extract_urls(blocklist: dict) -> list[str]:
+        """
+        Extract URLs from a Netskope blocklist payload.
+        """
+        data = blocklist.get("data", {})
+        urls = data.get("urls", [])
+        return [url for url in urls if isinstance(url, str)]
+
+    def get_blocklist(self, blocklist_id: str | int) -> dict:
+        """
+        Retrieve the current blocklist payload from Netskope.
+        """
+        return self.execute_request("GET", f"api/v2/policy/urllist/{blocklist_id}")
+
     @cached_property
     def base_url(self) -> str:
         base_url = None
 
-        # Preferred path: validated module configuration model.
+        # Preferred path: validated module configuration model
         try:
             configuration = self.module.configuration
             if isinstance(configuration, dict):
@@ -42,7 +82,7 @@ class NetskopeAction(Action):
             else:
                 base_url = getattr(configuration, "base_url", None)
         except ModuleConfigurationError:
-            # Backward-compatibility path: read raw config when model validation fails.
+            # Backward-compatibility path: read raw config when model validation fails
             raw_configuration = self.module.load_config(self.module.MODULE_CONFIGURATION_FILE_NAME, "json")
             if isinstance(raw_configuration, dict):
                 base_url = raw_configuration.get("base_url")

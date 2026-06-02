@@ -1,13 +1,16 @@
+from typing import Literal
+
 from pydantic import Field
 
 from netskope_modules.actions.action_base import NetskopeAction, NetskopeActionArguments
 
 
 class ReplaceBlocklistArguments(NetskopeActionArguments):
-    url_list_id: str = Field(..., description="The ID of the URL list to replace")
-    items: list[str] = Field(..., description="List of items to set in the blocklist (IPs, domains, or URLs)")
-    name: str = Field(..., description="Name of the URL list")
-    type: str = Field("exact", description="Type of URL list (exact, regex, etc.)")
+    blocklist_id: str = Field(..., description="The ID of the blocklist")
+    blocklist_name: str = Field(..., description="The name of the blocklist")
+    blocklist_type: Literal["exact", "regex"] = Field("exact", description="Type of blocklist (exact, regex)")
+    items: list[str] = Field(..., description="List of items in the blocklist (IPs, domains, or URLs)")
+    sort_items: bool = Field(True, description="Sort items alphabetically")
 
 
 class ReplaceBlocklistAction(NetskopeAction):
@@ -18,12 +21,16 @@ class ReplaceBlocklistAction(NetskopeAction):
     def run(self, arguments: dict) -> dict:
         args = ReplaceBlocklistArguments(**arguments)
         self.initialize_action_arguments(args)
+        normalized_items = self.normalize_urls(args.items, sort_items=args.sort_items)
 
-        # Replace the entire URL list
-        replace_payload = {"data": {"type": args.type, "urls": args.items}, "name": args.name}
+        # Replace the entire blocklist
+        replace_payload = {
+            "data": {"type": args.blocklist_type, "urls": normalized_items},
+            "name": args.blocklist_name,
+        }
 
         replace_response = self.execute_request(
-            "PATCH", f"api/v2/policy/urllist/{args.url_list_id}/replace", json=replace_payload
+            "PATCH", f"api/v2/policy/urllist/{args.blocklist_id}/replace", json=replace_payload
         )
 
         # Deploy the changes
@@ -32,5 +39,5 @@ class ReplaceBlocklistAction(NetskopeAction):
         return {
             "replace_result": replace_response,
             "deploy_result": deploy_response,
-            "message": f"Successfully replaced blocklist with {len(args.items)} item(s)",
+            "message": f"Successfully replaced blocklist with {len(normalized_items)} item(s)",
         }

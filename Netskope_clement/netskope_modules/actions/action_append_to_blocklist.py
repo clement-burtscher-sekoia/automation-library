@@ -1,12 +1,16 @@
+from typing import Literal
+
 from pydantic import Field
 
 from netskope_modules.actions.action_base import NetskopeAction, NetskopeActionArguments
 
 
 class AppendToBlocklistArguments(NetskopeActionArguments):
-    url_list_id: str = Field(..., description="The ID of the URL list to modify")
-    items: list[str] = Field(..., description="List of items to append to the blocklist (IPs, domains, or URLs)")
-    type: str = Field("exact", description="Type of URL list (exact, regex, etc.)")
+    blocklist_id: str = Field(..., description="The ID of the blocklist")
+    items: list[str] = Field(..., description="List of items in the blocklist (IPs, domains, or URLs)")
+    sort_items: bool = Field(True, description="Sort items alphabetically")
+    type: Literal["exact", "regex"] = Field("exact", description="Type of blocklist (exact, regex)")
+
 
 class AppendToBlocklistAction(NetskopeAction):
     """
@@ -17,16 +21,28 @@ class AppendToBlocklistAction(NetskopeAction):
         args = AppendToBlocklistArguments(**arguments)
         self.initialize_action_arguments(args)
 
-        # Append items to the URL list
+        current_blocklist = self.get_blocklist(args.blocklist_id)
+        existing_urls = set(self.extract_urls(current_blocklist))
+        normalized_items = self.normalize_urls(args.items, sort_items=args.sort_items)
+        items_to_append = [item for item in normalized_items if item not in existing_urls]
+
+        if not items_to_append:
+            return {
+                "append_result": current_blocklist,
+                "deploy_result": [],
+                "message": "No new item(s) to append: all provided values already exist in blocklist",
+            }
+
+        # Append items to the blocklist
         append_payload = {
             "data": {
                 "type": args.type,
-                "urls": args.items
+                "urls": items_to_append,
             }
         }
 
         append_response = self.execute_request(
-            "PATCH", f"api/v2/policy/urllist/{args.url_list_id}/append", json=append_payload
+            "PATCH", f"api/v2/policy/urllist/{args.blocklist_id}/append", json=append_payload
         )
 
         # Deploy the changes
@@ -35,5 +51,5 @@ class AppendToBlocklistAction(NetskopeAction):
         return {
             "append_result": append_response,
             "deploy_result": deploy_response,
-            "message": f"Successfully appended {len(args.items)} item(s) to blocklist",
+            "message": f"Successfully appended {len(items_to_append)} item(s) to blocklist",
         }
