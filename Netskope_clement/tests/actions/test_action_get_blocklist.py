@@ -24,6 +24,9 @@ def test_get_blocklist_success(symphony_storage, trigger):
 
         result = action.run({"api_token": "fake_api_token", "blocklist_id": "123"})
 
-        assert result["blocklist"]["id"] == 123
-        assert result["items"] == ["www.a.com", "www.b.com"]
-        assert "Successfully fetched blocklist 123" in result["message"]
+        assert result["action_name"] == "get_blocklist"
+        assert "curl -X 'GET'" in result["action_request"]
+        assert "'https://my.fake.netskope.com/api/v2/policy/urllist/123'" in result["action_request"]
+        assert "-H 'accept: application/json'" in result["action_request"]
+        assert result["action_response"]["id"] == 123
+        assert "Successfully fetched blocklist Test Blocklist (id = 123)" in result["action_status"]

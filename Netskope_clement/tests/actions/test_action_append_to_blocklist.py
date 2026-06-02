@@ -21,8 +21,20 @@ def test_append_to_blocklist_success(append_action):
     with requests_mock.Mocker() as mock_requests:
         mock_requests.get(
             "https://my.fake.netskope.com/api/v2/policy/urllist/123",
-            status_code=200,
-            json={"id": 123, "data": {"type": "exact", "urls": []}},
+            [
+                {
+                    "status_code": 200,
+                    "json": {"id": 123, "name": "Test Blocklist", "data": {"type": "exact", "urls": []}},
+                },
+                {
+                    "status_code": 200,
+                    "json": {
+                        "id": 123,
+                        "name": "Test Blocklist",
+                        "data": {"type": "exact", "urls": ["malicious.com", "www.test.com"]},
+                    },
+                },
+            ],
         )
 
         mock_requests.patch(
@@ -63,11 +75,12 @@ def test_append_to_blocklist_success(append_action):
 
         result = append_action.run(arguments)
 
-        assert result["append_result"]["id"] == 123
-        assert result["append_result"]["pending"] == 1
-        assert len(result["deploy_result"]) == 1
-        assert result["deploy_result"][0]["pending"] == 0
-        assert "Successfully appended 2 item(s) to blocklist" in result["message"]
+        assert result["action_name"] == "append_to_blocklist"
+        assert result["action_response"]["id"] == 123
+        assert (
+            "Successfully appended to blocklist Test Blocklist (id = 123): 2/2 added (0 duplicates)"
+            in result["action_status"]
+        )
 
 
 def test_append_to_blocklist_api_error(append_action):
@@ -183,11 +196,22 @@ def test_append_to_blocklist_should_skip_existing_and_duplicates(append_action):
     with requests_mock.Mocker() as mock_requests:
         mock_requests.get(
             "https://my.fake.netskope.com/api/v2/policy/urllist/123",
-            status_code=200,
-            json={
-                "id": 123,
-                "data": {"type": "exact", "urls": ["www.already.com"]},
-            },
+            [
+                {
+                    "status_code": 200,
+                    "json": {
+                        "id": 123,
+                        "data": {"type": "exact", "urls": ["www.already.com"]},
+                    },
+                },
+                {
+                    "status_code": 200,
+                    "json": {
+                        "id": 123,
+                        "data": {"type": "exact", "urls": ["www.already.com", "www.new.com"]},
+                    },
+                },
+            ],
         )
 
         mock_requests.patch(
@@ -210,7 +234,7 @@ def test_append_to_blocklist_should_skip_existing_and_duplicates(append_action):
 
         result = append_action.run(arguments)
 
-        assert "Successfully appended 1 item(s)" in result["message"]
+        assert "(id = 123): 1/3 added (2 duplicates)" in result["action_status"]
         assert len(mock_requests.request_history) == 3
         append_request_body = mock_requests.request_history[1].json()
         assert append_request_body == {"data": {"type": "exact", "urls": ["www.new.com"]}}
@@ -236,8 +260,8 @@ def test_append_to_blocklist_noop_when_all_items_exist(append_action):
 
         result = append_action.run(arguments)
 
-        assert "No new item(s) to append" in result["message"]
-        assert result["deploy_result"] == []
+        assert "No new item(s) appended" in result["action_status"]
+        assert "(id = 123): 0/2 added (2 duplicates)" in result["action_status"]
         assert len(mock_requests.request_history) == 1
 
 
@@ -246,8 +270,13 @@ def test_append_to_blocklist_should_not_sort_when_sort_items_false(append_action
     with requests_mock.Mocker() as mock_requests:
         mock_requests.get(
             "https://my.fake.netskope.com/api/v2/policy/urllist/123",
-            status_code=200,
-            json={"id": 123, "data": {"type": "exact", "urls": []}},
+            [
+                {"status_code": 200, "json": {"id": 123, "data": {"type": "exact", "urls": []}}},
+                {
+                    "status_code": 200,
+                    "json": {"id": 123, "data": {"type": "exact", "urls": ["www.z.com", "www.a.com"]}},
+                },
+            ],
         )
 
         mock_requests.patch(
