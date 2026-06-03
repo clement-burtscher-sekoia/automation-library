@@ -21,7 +21,7 @@
         "type": "string",
         "default": "exact",
         "enum": ["exact", "regex"],
-        "description": "Type of blocklist (exact, regex)"
+        "description": "The type of the blocklist (exact, regex)"
       },
       "items": {
         "type": "array",

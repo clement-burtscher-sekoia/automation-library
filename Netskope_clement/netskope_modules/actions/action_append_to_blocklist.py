@@ -8,9 +8,9 @@ from netskope_modules.actions.action_blocklist_base import NetskopeBlocklistActi
 
 class AppendToBlocklistArguments(NetskopeActionArguments):
     blocklist_id: str = Field(..., description="The ID of the blocklist")
+    blocklist_type: Literal["exact", "regex"] = Field("exact", description="The type of the blocklist (exact, regex)")
     items: list[str] = Field(..., description="List of items in the blocklist (IPs, domains, or URLs)")
     sort_items: bool = Field(True, description="Sort items alphabetically")
-    type: Literal["exact", "regex"] = Field("exact", description="Type of blocklist (exact, regex)")
 
 
 class AppendToBlocklistAction(NetskopeBlocklistAction):
@@ -45,7 +45,7 @@ class AppendToBlocklistAction(NetskopeBlocklistAction):
         # Append items to the blocklist
         append_payload = {
             "data": {
-                "type": args.type,
+                "type": args.blocklist_type,
                 "urls": items_to_append,
             }
         }

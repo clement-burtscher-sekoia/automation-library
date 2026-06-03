@@ -9,7 +9,7 @@ from netskope_modules.actions.action_blocklist_base import NetskopeBlocklistActi
 class ReplaceBlocklistArguments(NetskopeActionArguments):
     blocklist_id: str = Field(..., description="The ID of the blocklist")
     blocklist_name: str = Field(..., description="The name of the blocklist")
-    blocklist_type: Literal["exact", "regex"] = Field("exact", description="Type of blocklist (exact, regex)")
+    blocklist_type: Literal["exact", "regex"] = Field("exact", description="The type of the blocklist (exact, regex)")
     items: list[str] = Field(..., description="List of items in the blocklist (IPs, domains, or URLs)")
     sort_items: bool = Field(True, description="Sort items alphabetically")
 

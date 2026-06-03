@@ -13,6 +13,12 @@
         "type": "string",
         "description": "The ID of the blocklist"
       },
+      "blocklist_type": {
+        "type": "string",
+        "default": "exact",
+        "enum": ["exact", "regex"],
+        "description": "The type of the blocklist (exact, regex)"
+      },
       "items": {
         "type": "array",
         "items": {
@@ -24,12 +30,6 @@
         "type": "boolean",
         "default": true,
         "description": "Sort items alphabetically"
-      },
-      "type": {
-        "type": "string",
-        "default": "exact",
-        "enum": ["exact", "regex"],
-        "description": "Type of blocklist (exact, regex)"
       }
     },
     "required": [
