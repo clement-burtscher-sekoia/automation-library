@@ -28,12 +28,12 @@
       "client_secret"
     ]
   },
-  "description": "Microsoft Outlook is an email client and personal information manager that includes calendar, task management, contact management, note-taking, and web browsing features. It integrates with Microsoft Office suite for seamless productivity and communication.",
-  "name": "Microsoft Outlook",
-  "slug": "microsoft-outlook",
+  "description": "Microsoft Outlook Clement is an email client and personal information manager that includes calendar, task management, contact management, note-taking, and web browsing features. It integrates with Microsoft Office suite for seamless productivity and communication.",
+  "name": "Microsoft Outlook Clement",
+  "slug": "microsoft-outlook-clement",
   "uuid": "3f64816f-c00f-409b-8ba5-17eaaf55afde",
   "categories": [
     "Email"
   ],
-  "version": "0.4.0"
+  "version": "0.4.1"
 }
