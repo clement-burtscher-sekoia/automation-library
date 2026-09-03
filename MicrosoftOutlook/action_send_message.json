@@ -1,7 +1,7 @@
 {
   "name": "Send a message",
   "description": "Send a message from the user's mailbox",
-  "uuid": "9d5aec62-4a48-48c2-8cb7-06cb61db1c09",
+  "uuid": "9f459310-227f-4341-aaff-d888a22db48c",
   "docker_parameters": "action_send_message",
   "arguments": {
     "title": "ApplicationArguments",

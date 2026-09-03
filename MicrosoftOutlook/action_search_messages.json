@@ -1,7 +1,7 @@
 {
   "name": "Search messages",
   "description": "Search messages in a user's mailbox using InternetMessageId and/or NetworkMessageId",
-  "uuid": "9cd0dbfd-1ceb-40bf-a49f-28ca70e61165",
+  "uuid": "d4a65676-1d19-4d72-aa28-738a04252c31",
   "docker_parameters": "action_search_messages",
   "arguments": {
     "title": "ApplicationArguments",

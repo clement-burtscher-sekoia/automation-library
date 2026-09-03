@@ -1,7 +1,7 @@
 {
   "name": "Delete a message",
   "description": "Delete a message from the user's mailbox",
-  "uuid": "e3641fd8-54f9-5282-95fc-6429c9ce697b",
+  "uuid": "2440c91c-1996-42ae-8ec9-4e1c6df2e8ca",
   "docker_parameters": "action_delete_message",
   "arguments": {
     "title": "ApplicationArguments",

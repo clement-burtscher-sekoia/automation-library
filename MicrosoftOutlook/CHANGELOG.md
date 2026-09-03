@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-03
+
+### Fixed
+
+- Fix `HTTPError` error
+
 ## [0.4.0] - 2026-08-28
 
 ### Changed

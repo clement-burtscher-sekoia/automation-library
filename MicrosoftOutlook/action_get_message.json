@@ -1,7 +1,7 @@
 {
   "name": "Get a message",
   "description": "Get message details from the user's mailbox",
-  "uuid": "dbff60fd-58a3-5b62-8138-84c7db955243",
+  "uuid": "cd8daf44-cef9-4ea5-8f78-d6e5762a6d57",
   "docker_parameters": "action_get_message",
   "arguments": {
     "title": "ApplicationArguments",

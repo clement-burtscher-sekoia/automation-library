@@ -1,7 +1,7 @@
 {
   "name": "Resolve a message",
   "description": "Resolve a unique Graph message item ID from email_message_id (internetMessageId) or email_local_id (NetworkMessageId)",
-  "uuid": "7f2cc912-f264-4f08-b3e7-5cf10d76715a",
+  "uuid": "a2619198-33ea-4893-a318-ee59005a2ba4",
   "docker_parameters": "action_resolve_message",
   "arguments": {
     "title": "ApplicationArguments",

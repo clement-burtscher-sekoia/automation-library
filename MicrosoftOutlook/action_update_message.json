@@ -1,7 +1,7 @@
 {
   "name": "Update a message",
   "description": "Update a message in the user's mailbox",
-  "uuid": "52cd13b7-7fb3-5393-bc65-c988ef346fa3",
+  "uuid": "f59f0134-3723-4b2b-a7a5-d656663572bd",
   "docker_parameters": "action_update_message",
   "arguments": {
     "title": "ApplicationArguments",

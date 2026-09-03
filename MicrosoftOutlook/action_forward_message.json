@@ -1,7 +1,7 @@
 {
   "name": "Forward a message",
   "description": "Forward a message from the user's mailbox",
-  "uuid": "afb77f00-b727-5549-94e6-9f774af11fa2",
+  "uuid": "2c7069e7-3944-4e3d-987c-27bbd455a762",
   "docker_parameters": "action_forward_message",
   "arguments": {
     "title": "ApplicationArguments",
