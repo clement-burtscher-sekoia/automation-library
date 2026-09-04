@@ -179,6 +179,70 @@ def test_resolve_message_by_network_message_id_fallback_on_empty_result(configur
         assert result["total_results"] == 1
 
 
+def test_resolve_message_by_network_message_id_fallback_follows_next_link(configured_action):
+    with requests_mock.Mocker() as mock:
+        mock.register_uri(
+            "GET",
+            "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
+            json={"access_token": "foo-token", "token_type": "bearer", "expires_in": 1799},
+        )
+        mock.register_uri(
+            "GET",
+            "https://graph.microsoft.com/v1.0/users/1111/messages",
+            [
+                {"status_code": 200, "json": {"value": []}},
+                {
+                    "status_code": 200,
+                    "json": {
+                        "value": [
+                            {
+                                "id": "graph-item-id-non-match",
+                                "singleValueExtendedProperties": [
+                                    {
+                                        "id": "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId",
+                                        "value": "00000000-0000-4000-8000-000000000002",
+                                    }
+                                ],
+                            }
+                        ],
+                        "@odata.nextLink": "https://graph.microsoft.com/v1.0/users/1111/messages?$skiptoken=abc",
+                    },
+                },
+            ],
+        )
+        mock.register_uri(
+            "GET",
+            "https://graph.microsoft.com/v1.0/users/1111/messages?$skiptoken=abc",
+            status_code=200,
+            json={
+                "value": [
+                    {
+                        "id": "graph-item-id-5",
+                        "singleValueExtendedProperties": [
+                            {
+                                "id": "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId",
+                                "value": "00000000-0000-4000-8000-000000000001",
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+
+        action = configured_action(ResolveMessageAction)
+        result = action.run(
+            arguments={
+                "user": "1111",
+                "email_local_id": "00000000-0000-4000-8000-000000000001",
+                "top": 1,
+            }
+        )
+
+        assert result["message_id"] == "graph-item-id-5"
+        assert result["total_results"] == 1
+        assert len(mock.request_history) == 4
+
+
 def test_resolve_message_by_network_message_id_fallback_on_inefficient_filter(configured_action):
     with requests_mock.Mocker() as mock:
         mock.register_uri(
@@ -220,29 +284,28 @@ def test_resolve_message_by_network_message_id_fallback_on_inefficient_filter(co
         assert result["total_results"] == 1
 
 
-def test_extract_network_message_id_returns_none_for_non_string_value():
-    message = {
-        "singleValueExtendedProperties": [
-            {
-                "id": "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId",
-                "value": 123,
-            }
-        ]
-    }
-
-    assert ResolveMessageAction._extract_network_message_id(message) is None
-
-
-def test_extract_network_message_id_returns_none_when_property_is_absent():
-    message = {
-        "singleValueExtendedProperties": [
-            {
-                "id": "String {11111111-1111-1111-1111-111111111111} Name OtherProperty",
-                "value": "foo",
-            }
-        ]
-    }
-
+@pytest.mark.parametrize(
+    "message",
+    [
+        {
+            "singleValueExtendedProperties": [
+                {
+                    "id": "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId",
+                    "value": 123,
+                }
+            ]
+        },
+        {
+            "singleValueExtendedProperties": [
+                {
+                    "id": "String {11111111-1111-1111-1111-111111111111} Name OtherProperty",
+                    "value": "foo",
+                }
+            ]
+        },
+    ],
+)
+def test_extract_network_message_id_returns_none_when_unusable(message):
     assert ResolveMessageAction._extract_network_message_id(message) is None
 
 

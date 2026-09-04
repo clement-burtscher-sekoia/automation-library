@@ -3,6 +3,7 @@ from email.parser import Parser
 from pathlib import Path
 from urllib.parse import unquote_plus
 
+import pytest
 import requests_mock
 
 from microsoft_outlook_modules.action_resolve_message import ResolveMessageAction
@@ -15,20 +16,31 @@ def parse_eml(path: Path):
     return Parser(policy=policy.default).parsestr(path.read_text(encoding="utf-8"))
 
 
-def test_incoming_anonymized_eml_headers_are_parseable():
-    message = parse_eml(FIXTURES_DIR / "incoming_sample_anonymized.eml")
+@pytest.mark.parametrize(
+    "file_name,expected_subject,expected_message_id,expected_network_message_id",
+    [
+        (
+            "incoming_sample_anonymized.eml",
+            "E2E-OUTLOOK-ANON-01",
+            "<incoming-sample-0001@example.test>",
+            "11111111-2222-3333-4444-555555555555",
+        ),
+        (
+            "forwarded_sample_anonymized.eml",
+            "FW: MicrosoftOutlook e2e update",
+            "<forwarded-sample-0001@example.test>",
+            "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        ),
+    ],
+)
+def test_anonymized_eml_headers_are_parseable(
+    file_name, expected_subject, expected_message_id, expected_network_message_id
+):
+    message = parse_eml(FIXTURES_DIR / file_name)
 
-    assert message["Subject"] == "E2E-OUTLOOK-ANON-01"
-    assert message["Message-ID"] == "<incoming-sample-0001@example.test>"
-    assert message["X-MS-Exchange-Organization-Network-Message-Id"] == "11111111-2222-3333-4444-555555555555"
-
-
-def test_forwarded_anonymized_eml_headers_are_parseable():
-    message = parse_eml(FIXTURES_DIR / "forwarded_sample_anonymized.eml")
-
-    assert message["Subject"] == "FW: MicrosoftOutlook e2e update"
-    assert message["Message-ID"] == "<forwarded-sample-0001@example.test>"
-    assert message["X-MS-Exchange-Organization-Network-Message-Id"] == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    assert message["Subject"] == expected_subject
+    assert message["Message-ID"] == expected_message_id
+    assert message["X-MS-Exchange-Organization-Network-Message-Id"] == expected_network_message_id
 
 
 def test_anonymized_eml_fixtures_do_not_contain_real_domains():

@@ -18,6 +18,8 @@ class ResolveMessageArguments(BaseModel):
 
 class ResolveMessageAction(MicrosoftGraphActionBase):
     NETWORK_MESSAGE_ID_EXTENDED_PROPERTY = "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId"
+    FALLBACK_PAGE_SIZE = 50
+    FALLBACK_MAX_MESSAGES_SCANNED = 1000
 
     @staticmethod
     def _escape_odata_literal(value: str) -> str:
@@ -35,26 +37,33 @@ class ResolveMessageAction(MicrosoftGraphActionBase):
         self, user_id_or_principal_name: str, email_local_id: str, top: int
     ) -> Any:
         escaped_property = self._escape_odata_literal(self.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY)
-        params: dict[str, Any] = {
-            "$top": top,
+        params: dict[str, Any] | None = {
+            "$top": max(top, self.FALLBACK_PAGE_SIZE),
             "$select": "id,internetMessageId,subject,receivedDateTime,from,toRecipients",
             "$expand": "singleValueExtendedProperties(" f"$filter=id eq '{escaped_property}'" ")",
             "$orderby": "receivedDateTime desc",
         }
 
-        response = self.client.get(
-            f"https://graph.microsoft.com/v1.0/users/{user_id_or_principal_name}/messages",
-            params=params,
-            timeout=60,
-        )
-        self.handle_response(response)
+        next_url = f"https://graph.microsoft.com/v1.0/users/{user_id_or_principal_name}/messages"
+        matched_messages: list[dict[str, Any]] = []
+        scanned_messages = 0
 
-        payload = response.json()
-        messages: list[dict[str, Any]] = payload.get("value", [])
-        payload["value"] = [
-            message for message in messages if self._extract_network_message_id(message) == email_local_id
-        ]
-        return payload
+        while next_url and len(matched_messages) < top and scanned_messages < self.FALLBACK_MAX_MESSAGES_SCANNED:
+            response = self.client.get(next_url, params=params, timeout=60)
+            self.handle_response(response)
+
+            payload = response.json()
+            messages: list[dict[str, Any]] = payload.get("value", [])
+            scanned_messages += len(messages)
+
+            matched_messages.extend(
+                message for message in messages if self._extract_network_message_id(message) == email_local_id
+            )
+
+            next_url = payload.get("@odata.nextLink")
+            params = None
+
+        return {"value": matched_messages[:top]}
 
     def run(self, arguments: Any) -> Any:
         validated_arguments = ResolveMessageArguments.model_validate(arguments)

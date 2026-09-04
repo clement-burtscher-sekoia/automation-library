@@ -43,16 +43,33 @@ def test_client_property_accepts_raw_string_client_secret():
     assert isinstance(action.client, ApiClient)
 
 
-def test_read_client_secret_accepts_raw_string_value():
-    assert SearchMessagesAction._read_client_secret("client_secret") == "client_secret"
+@pytest.mark.parametrize(
+    "client_secret_value,expected",
+    [
+        ("client_secret", "client_secret"),
+    ],
+)
+def test_read_client_secret_accepts_supported_types(client_secret_value, expected):
+    assert SearchMessagesAction._read_client_secret(client_secret_value) == expected
 
 
-def test_read_client_secret_accepts_secretstr_like_value():
+def test_read_client_secret_accepts_secretstr_like_value_object():
     class SecretLike:
         def get_secret_value(self):
             return "client_secret"
 
     assert SearchMessagesAction._read_client_secret(SecretLike()) == "client_secret"
+
+
+@pytest.mark.parametrize(
+    "client_secret_value",
+    [
+        pytest.param(object(), id="missing_secret_getter"),
+    ],
+)
+def test_read_client_secret_rejects_unsupported_secret_types(client_secret_value):
+    with pytest.raises(TypeError, match="Invalid client_secret type"):
+        SearchMessagesAction._read_client_secret(client_secret_value)
 
 
 def test_read_client_secret_rejects_non_string_secret_value():
@@ -62,11 +79,6 @@ def test_read_client_secret_rejects_non_string_secret_value():
 
     with pytest.raises(TypeError, match="Invalid client_secret type"):
         SearchMessagesAction._read_client_secret(BadSecretLike())
-
-
-def test_read_client_secret_rejects_object_without_secret_getter():
-    with pytest.raises(TypeError, match="Invalid client_secret type"):
-        SearchMessagesAction._read_client_secret(object())
 
 
 def test_search_messages_by_network_message_id(configured_action, get_message_1):
@@ -227,29 +239,28 @@ def test_search_messages_omits_message_id_when_graph_id_is_not_string(configured
         assert "message_id" not in result["messages"][0]
 
 
-def test_extract_network_message_id_returns_none_for_non_string_value():
-    message = {
-        "singleValueExtendedProperties": [
-            {
-                "id": "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId",
-                "value": 123,
-            }
-        ]
-    }
-
-    assert SearchMessagesAction._extract_network_message_id(message) is None
-
-
-def test_extract_network_message_id_returns_none_when_property_is_absent():
-    message = {
-        "singleValueExtendedProperties": [
-            {
-                "id": "String {11111111-1111-1111-1111-111111111111} Name OtherProperty",
-                "value": "foo",
-            }
-        ]
-    }
-
+@pytest.mark.parametrize(
+    "message",
+    [
+        {
+            "singleValueExtendedProperties": [
+                {
+                    "id": "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId",
+                    "value": 123,
+                }
+            ]
+        },
+        {
+            "singleValueExtendedProperties": [
+                {
+                    "id": "String {11111111-1111-1111-1111-111111111111} Name OtherProperty",
+                    "value": "foo",
+                }
+            ]
+        },
+    ],
+)
+def test_extract_network_message_id_returns_none_when_unusable(message):
     assert SearchMessagesAction._extract_network_message_id(message) is None
 
 
