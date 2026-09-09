@@ -55,12 +55,12 @@ def test_linear_chain_search_get_update_forward_uses_enriched_results(configured
                 "email_message_id": "<chain-sample-message-id@example.test>",
             }
         )
-        assert search_result["message_id"] == message_id
+        assert search_result["message_ids"] == [message_id]
 
         get_result = get_action.run(
             arguments={
                 "user": "1111",
-                "message_id": search_result["message_id"],
+                "message_id": search_result["message_ids"][0],
             }
         )
         assert get_result["message_id"] == message_id

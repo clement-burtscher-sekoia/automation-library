@@ -110,7 +110,7 @@ def test_anonymized_fixture_headers_map_pertinently_to_search(configured_action)
                 "email_local_id": network_message_id,
             }
         )
-        assert search_local_result["message_id"] == "graph-item-id-from-fixture"
+        assert search_local_result["message_ids"] == ["graph-item-id-from-fixture"]
 
         messages_requests = [request for request in mock.request_history if "/users/1111/messages" in request.url]
         assert len(messages_requests) == 2

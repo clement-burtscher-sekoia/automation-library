@@ -29,23 +29,17 @@
         "description": "The message identifier mapped from email.message_id (Graph internetMessageId / Internet Message-ID RFC 5322)",
         "type": "string"
       },
-      "item_index": {
-        "description": "The zero-based index of the candidate to select in returned messages",
-        "type": "integer",
-        "minimum": 0,
-        "default": 0
-      },
-      "most_recent": {
-        "description": "The option that sorts candidates by receivedDateTime descending when true",
-        "type": "boolean",
-        "default": false
-      },
-      "top": {
+      "max_messages_to_return": {
         "description": "The maximum number of messages to return",
         "type": "integer",
         "minimum": 1,
         "maximum": 100,
         "default": 10
+      },
+      "return_most_recent_first": {
+        "description": "The option to return candidates sorted by receivedDateTime descending when true",
+        "type": "boolean",
+        "default": false
       },
       "user": {
         "description": "The user identifier or user principal name (UPN)",
@@ -60,10 +54,8 @@
       "user",
       "query_type",
       "query_value",
+      "message_ids",
       "messages",
-      "message_id",
-      "selected_index",
-      "selected_message",
       "total_results",
       "returned_count",
       "has_more"
@@ -73,12 +65,12 @@
         "description": "The indicator that is true when Graph indicates additional pages may exist",
         "type": "boolean"
       },
-      "message_id": {
-        "description": "The selected Microsoft Graph message item ID, or null when no result is found",
-        "type": [
-          "string",
-          "null"
-        ]
+      "message_ids": {
+        "description": "The list of Microsoft Graph message item IDs extracted from returned messages",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       },
       "messages": {
         "description": "The list of matching messages",
@@ -137,20 +129,6 @@
       "returned_count": {
         "description": "The alias of total_results for explicit count-based playbook conditions",
         "type": "integer"
-      },
-      "selected_index": {
-        "description": "The selected index in the returned messages list, or null when no result is found",
-        "type": [
-          "integer",
-          "null"
-        ]
-      },
-      "selected_message": {
-        "description": "The selected message object, or null when no result is found",
-        "type": [
-          "object",
-          "null"
-        ]
       },
       "total_results": {
         "description": "The number of messages returned in this response",

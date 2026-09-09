@@ -63,7 +63,8 @@ def test_playbook_workflow_detect_confirm_search_delete(configured_action, messa
         assert len(search_result["messages"]) == 1
         assert "urgent" in search_result["messages"][0]["subject"].lower()
 
-        message_id = search_result["message_id"]
+        assert search_result["message_ids"]
+        message_id = search_result["message_ids"][0]
         assert message_id == "graph-item-id-1"
 
         get_action = configured_action(GetMessageAction)
@@ -75,7 +76,7 @@ def test_playbook_workflow_detect_confirm_search_delete(configured_action, messa
         delete_action.run(arguments={"user": "1111", "message_id": message_id})
 
 
-def test_search_message_item_index_out_of_range(configured_action):
+def test_search_message_item_index_is_rejected(configured_action):
     with requests_mock.Mocker() as mock:
         mock.register_uri(
             "GET",
@@ -94,7 +95,7 @@ def test_search_message_item_index_out_of_range(configured_action):
         )
 
         search_action = configured_action(SearchMessagesAction)
-        with pytest.raises(ValueError, match="out of range"):
+        with pytest.raises(ValueError, match="Extra inputs are not permitted"):
             search_action.run(
                 arguments={
                     "user": "1111",

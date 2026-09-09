@@ -24,14 +24,17 @@ def test_search_messages_by_internet_message_id(configured_action, get_message_1
 
         action = configured_action(SearchMessagesAction)
         result = action.run(
-            arguments={"user": "1111", "email_message_id": "<sample-message-id@example.com>", "top": 5}
+            arguments={
+                "user": "1111",
+                "email_message_id": "<sample-message-id@example.com>",
+                "max_messages_to_return": 5,
+            }
         )
 
-        assert result["message_id"] == get_message_1["id"]
+        assert result["message_ids"] == [get_message_1["id"]]
         assert result["user"] == "1111"
         assert result["query_type"] == "email_message_id"
         assert result["query_value"] == "<sample-message-id@example.com>"
-        assert result["selected_index"] == 0
         assert result["total_results"] == 1
         assert result["returned_count"] == 1
         assert result["has_more"] is False
@@ -42,7 +45,7 @@ def test_search_messages_by_internet_message_id(configured_action, get_message_1
         assert "$top=5" in decoded_query
 
 
-def test_search_messages_most_recent_adds_orderby(configured_action):
+def test_search_messages_return_most_recent_first_adds_orderby(configured_action):
     with requests_mock.Mocker() as mock:
         mock.register_uri(
             "GET",
@@ -60,11 +63,11 @@ def test_search_messages_most_recent_adds_orderby(configured_action):
             arguments={
                 "user": "1111",
                 "email_message_id": "<sample-message-id@example.com>",
-                "most_recent": True,
+                "return_most_recent_first": True,
             }
         )
 
-        assert result["message_id"] == "graph-item-id-1"
+        assert result["message_ids"] == ["graph-item-id-1"]
         assert result["query_type"] == "email_message_id"
         assert result["query_value"] == "<sample-message-id@example.com>"
 
@@ -149,8 +152,9 @@ def test_search_messages_by_network_message_id(configured_action, get_message_1)
         action = configured_action(SearchMessagesAction)
         result = action.run(arguments={"user": "1111", "email_local_id": "00000000-0000-4000-8000-000000000001"})
 
-        assert result["selected_message"]["message_id"] == get_message_1["id"]
-        assert result["selected_message"]["network_message_id"] == "00000000-0000-4000-8000-000000000001"
+        assert result["messages"][0]["message_id"] == get_message_1["id"]
+        assert result["messages"][0]["network_message_id"] == "00000000-0000-4000-8000-000000000001"
+        assert result["message_ids"] == [get_message_1["id"]]
         assert result["query_type"] == "email_local_id"
         assert result["query_value"] == "00000000-0000-4000-8000-000000000001"
 
@@ -216,13 +220,15 @@ def test_search_messages_validation_error(configured_action):
 
 
 @pytest.mark.parametrize(
-    "top,expected_match",
+    "max_messages_to_return,expected_match",
     [
         (0, "greater than or equal to 1"),
         (101, "less than or equal to 100"),
     ],
 )
-def test_search_messages_top_range_validation_error(configured_action, top, expected_match):
+def test_search_messages_max_messages_to_return_range_validation_error(
+    configured_action, max_messages_to_return, expected_match
+):
     action = configured_action(SearchMessagesAction)
 
     with pytest.raises(ValueError, match=expected_match):
@@ -230,7 +236,7 @@ def test_search_messages_top_range_validation_error(configured_action, top, expe
             arguments={
                 "user": "1111",
                 "email_message_id": "<sample-message-id@example.com>",
-                "top": top,
+                "max_messages_to_return": max_messages_to_return,
             }
         )
 
@@ -271,7 +277,7 @@ def test_search_messages_by_network_message_id_fallback_on_empty_result(configur
 
         assert len(result["messages"]) == 1
         assert result["messages"][0]["message_id"] == "graph-item-id-1"
-        assert result["message_id"] == "graph-item-id-1"
+        assert result["message_ids"] == ["graph-item-id-1"]
         assert result["query_type"] == "email_local_id"
         assert result["query_value"] == "00000000-0000-4000-8000-000000000001"
         assert len(mock.request_history) == 3
@@ -316,7 +322,7 @@ def test_search_messages_by_network_message_id_fallback_on_inefficient_filter(co
 
         assert len(result["messages"]) == 1
         assert result["messages"][0]["message_id"] == "graph-item-id-2"
-        assert result["message_id"] == "graph-item-id-2"
+        assert result["message_ids"] == ["graph-item-id-2"]
         assert result["query_type"] == "email_local_id"
         assert result["query_value"] == "00000000-0000-4000-8000-000000000001"
 
@@ -335,8 +341,9 @@ def test_search_messages_omits_message_id_when_graph_id_is_not_string(configured
         )
 
         action = configured_action(SearchMessagesAction)
-        with pytest.raises(ValueError, match="Unable to resolve a valid string message_id"):
-            action.run(arguments={"user": "1111", "email_message_id": "<sample-message-id@example.com>"})
+        result = action.run(arguments={"user": "1111", "email_message_id": "<sample-message-id@example.com>"})
+        assert result["messages"] == [{"subject": "test-subject"}]
+        assert result["message_ids"] == []
 
 
 def test_search_messages_returns_empty_selection_when_no_results(configured_action):
@@ -359,17 +366,15 @@ def test_search_messages_returns_empty_selection_when_no_results(configured_acti
             "user": "1111",
             "query_type": "email_message_id",
             "query_value": "<sample-message-id@example.com>",
+            "message_ids": [],
             "messages": [],
-            "message_id": None,
-            "selected_index": None,
-            "selected_message": None,
             "total_results": 0,
             "returned_count": 0,
             "has_more": False,
         }
 
 
-def test_search_messages_item_index_out_of_range(configured_action):
+def test_search_messages_rejects_removed_item_index_input(configured_action):
     with requests_mock.Mocker() as mock:
         mock.register_uri(
             "GET",
@@ -383,7 +388,7 @@ def test_search_messages_item_index_out_of_range(configured_action):
         )
 
         action = configured_action(SearchMessagesAction)
-        with pytest.raises(ValueError, match="out of range"):
+        with pytest.raises(ValueError, match="Extra inputs are not permitted"):
             action.run(
                 arguments={
                     "user": "1111",

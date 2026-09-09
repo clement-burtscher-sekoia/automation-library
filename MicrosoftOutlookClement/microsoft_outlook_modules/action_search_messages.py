@@ -11,9 +11,8 @@ class SearchMessagesArguments(BaseModel):
     user: str
     email_message_id: str | None = None
     email_local_id: str | None = None
-    top: int = Field(default=10, ge=1, le=100)
-    item_index: int = Field(default=0, ge=0)
-    most_recent: bool = False
+    max_messages_to_return: int = Field(default=10, ge=1, le=100)
+    return_most_recent_first: bool = False
 
 
 class SearchMessagesAction(MicrosoftGraphActionBase):
@@ -34,11 +33,11 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         return None
 
     def _search_by_network_message_id_fallback(
-        self, user_id_or_principal_name: str, network_message_id: str, top: int
+        self, user_id_or_principal_name: str, network_message_id: str, max_messages_to_return: int
     ) -> Any:
         escaped_property = self._escape_odata_literal(self.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY)
         params: dict[str, Any] | None = {
-            "$top": max(top, self.FALLBACK_PAGE_SIZE),
+            "$top": max(max_messages_to_return, self.FALLBACK_PAGE_SIZE),
             "$select": "id,internetMessageId,subject,receivedDateTime,from,toRecipients",
             "$expand": "singleValueExtendedProperties(" f"$filter=id eq '{escaped_property}'" ")",
             "$orderby": "receivedDateTime desc",
@@ -48,7 +47,11 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         matched_messages: list[dict[str, Any]] = []
         scanned_messages = 0
 
-        while next_url and len(matched_messages) < top and scanned_messages < self.FALLBACK_MAX_MESSAGES_SCANNED:
+        while (
+            next_url
+            and len(matched_messages) < max_messages_to_return
+            and scanned_messages < self.FALLBACK_MAX_MESSAGES_SCANNED
+        ):
             response = self.client.get(next_url, params=params, timeout=60)
             self.handle_response(response)
 
@@ -64,7 +67,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             params = None
 
         return {
-            "value": matched_messages[:top],
+            "value": matched_messages[:max_messages_to_return],
             "@odata.nextLink": next_url,
         }
 
@@ -73,9 +76,8 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         user_id_or_principal_name = validated_arguments.user
         internet_message_id = validated_arguments.email_message_id
         network_message_id = validated_arguments.email_local_id
-        top = validated_arguments.top
-        item_index = validated_arguments.item_index
-        most_recent = validated_arguments.most_recent
+        max_messages_to_return = validated_arguments.max_messages_to_return
+        return_most_recent_first = validated_arguments.return_most_recent_first
 
         if not internet_message_id and not network_message_id:
             raise ValueError("Either email_message_id or email_local_id must be provided")
@@ -105,11 +107,11 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
 
         params: dict[str, Any] = {
             "$filter": " and ".join(filters),
-            "$top": top,
+            "$top": max_messages_to_return,
             "$select": "id,internetMessageId,subject,receivedDateTime,from,toRecipients",
         }
 
-        if most_recent:
+        if return_most_recent_first:
             params["$orderby"] = "receivedDateTime desc"
 
         if network_message_id:
@@ -128,14 +130,18 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             if network_message_id and "InefficientFilter" in str(exc):
                 self.log(message="Fallback to client-side NetworkMessageId filtering", level="warning")
                 payload = self._search_by_network_message_id_fallback(
-                    user_id_or_principal_name, network_message_id, top
+                    user_id_or_principal_name, network_message_id, max_messages_to_return
                 )
             else:
                 raise
 
         if network_message_id and not payload.get("value"):
             self.log(message="No results with NetworkMessageId filter, retrying with fallback", level="warning")
-            payload = self._search_by_network_message_id_fallback(user_id_or_principal_name, network_message_id, top)
+            payload = self._search_by_network_message_id_fallback(
+                user_id_or_principal_name,
+                network_message_id,
+                max_messages_to_return,
+            )
 
         messages = payload.get("value", [])
         normalized_messages = cast(list[dict[str, Any]], self._snake_case_keys(messages))
@@ -150,37 +156,28 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
 
         has_more = bool(payload.get("@odata.nextLink"))
         total_results = len(normalized_messages)
+        message_ids = [
+            message["message_id"] for message in normalized_messages if isinstance(message.get("message_id"), str)
+        ]
 
         if not normalized_messages:
             return {
                 "user": user_id_or_principal_name,
                 "query_type": query_type,
                 "query_value": query_value,
+                "message_ids": [],
                 "messages": [],
-                "message_id": None,
-                "selected_index": None,
-                "selected_message": None,
                 "total_results": 0,
                 "returned_count": 0,
                 "has_more": has_more,
             }
 
-        if item_index >= total_results:
-            raise ValueError(f"item_index {item_index} is out of range for {total_results} result(s)")
-
-        selected_message = normalized_messages[item_index]
-        resolved_message_id = selected_message.get("message_id")
-        if not isinstance(resolved_message_id, str):
-            raise ValueError("Unable to resolve a valid string message_id from selected message")
-
         return {
             "user": user_id_or_principal_name,
             "query_type": query_type,
             "query_value": query_value,
+            "message_ids": message_ids,
             "messages": normalized_messages,
-            "message_id": resolved_message_id,
-            "selected_index": item_index,
-            "selected_message": selected_message,
             "total_results": total_results,
             "returned_count": total_results,
             "has_more": has_more,
