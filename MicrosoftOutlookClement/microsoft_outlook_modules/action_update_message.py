@@ -95,5 +95,15 @@ class UpdateMessageAction(MicrosoftGraphActionBase):
         resolved_message_id = result.get("id") if isinstance(result.get("id"), str) else message_id
         normalized_result = self._snake_case_keys(result)
         normalized_result.pop("id", None)
+        normalized_result["user"] = user_id_or_principal_name
+        normalized_result["action"] = "update_message"
+        normalized_result["bcc"] = bcc
+        normalized_result["cc"] = cc
+        normalized_result["importance"] = importance
+        normalized_result["original_from"] = mailbox_owner
+        normalized_result["original_subject"] = subject
+        normalized_result["recipients"] = recipients
+        normalized_result["sender"] = sender
+        normalized_result["status"] = "updated"
         normalized_result["message_id"] = resolved_message_id
         return normalized_result

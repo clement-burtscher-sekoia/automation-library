@@ -23,12 +23,54 @@ def test_search_messages_by_internet_message_id(configured_action, get_message_1
         )
 
         action = configured_action(SearchMessagesAction)
-        action.run(arguments={"user": "1111", "email_message_id": "<sample-message-id@example.com>", "top": 5})
+        result = action.run(
+            arguments={"user": "1111", "email_message_id": "<sample-message-id@example.com>", "top": 5}
+        )
+
+        assert result["message_id"] == get_message_1["id"]
+        assert result["user"] == "1111"
+        assert result["query_type"] == "email_message_id"
+        assert result["query_value"] == "<sample-message-id@example.com>"
+        assert result["selected_index"] == 0
+        assert result["total_results"] == 1
+        assert result["returned_count"] == 1
+        assert result["has_more"] is False
 
         request = mock.request_history[1]
         decoded_query = unquote_plus(request.url.split("?", maxsplit=1)[1])
         assert "$filter=internetMessageId eq '<sample-message-id@example.com>'" in decoded_query
         assert "$top=5" in decoded_query
+
+
+def test_search_messages_most_recent_adds_orderby(configured_action):
+    with requests_mock.Mocker() as mock:
+        mock.register_uri(
+            "GET",
+            "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
+            json={"access_token": "foo-token", "token_type": "bearer", "expires_in": 1799},
+        )
+        mock.register_uri(
+            "GET",
+            "https://graph.microsoft.com/v1.0/users/1111/messages",
+            json={"value": [{"id": "graph-item-id-1", "internetMessageId": "<sample-message-id@example.com>"}]},
+        )
+
+        action = configured_action(SearchMessagesAction)
+        result = action.run(
+            arguments={
+                "user": "1111",
+                "email_message_id": "<sample-message-id@example.com>",
+                "most_recent": True,
+            }
+        )
+
+        assert result["message_id"] == "graph-item-id-1"
+        assert result["query_type"] == "email_message_id"
+        assert result["query_value"] == "<sample-message-id@example.com>"
+
+        request = mock.request_history[1]
+        decoded_query = unquote_plus(request.url.split("?", maxsplit=1)[1])
+        assert "$orderby=receivedDateTime desc" in decoded_query
 
 
 def test_client_property_accepts_raw_string_client_secret():
@@ -82,6 +124,16 @@ def test_read_client_secret_rejects_non_string_secret_value():
 
 
 def test_search_messages_by_network_message_id(configured_action, get_message_1):
+    payload = {
+        **get_message_1,
+        "singleValueExtendedProperties": [
+            {
+                "id": SearchMessagesAction.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY,
+                "value": "00000000-0000-4000-8000-000000000001",
+            }
+        ],
+    }
+
     with requests_mock.Mocker() as mock:
         mock.register_uri(
             "GET",
@@ -91,11 +143,16 @@ def test_search_messages_by_network_message_id(configured_action, get_message_1)
         mock.register_uri(
             "GET",
             "https://graph.microsoft.com/v1.0/users/1111/messages",
-            json={"value": [get_message_1]},
+            json={"value": [payload]},
         )
 
         action = configured_action(SearchMessagesAction)
-        action.run(arguments={"user": "1111", "email_local_id": "00000000-0000-4000-8000-000000000001"})
+        result = action.run(arguments={"user": "1111", "email_local_id": "00000000-0000-4000-8000-000000000001"})
+
+        assert result["selected_message"]["message_id"] == get_message_1["id"]
+        assert result["selected_message"]["network_message_id"] == "00000000-0000-4000-8000-000000000001"
+        assert result["query_type"] == "email_local_id"
+        assert result["query_value"] == "00000000-0000-4000-8000-000000000001"
 
         request = mock.request_history[1]
         decoded_query = unquote_plus(request.url.split("?", maxsplit=1)[1])
@@ -108,6 +165,45 @@ def test_search_messages_by_network_message_id(configured_action, get_message_1)
             "$expand=singleValueExtendedProperties($filter=id eq "
             "'String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId')"
         ) in decoded_query
+
+
+def test_search_messages_with_combined_identifiers(configured_action, get_message_1):
+    payload = {
+        **get_message_1,
+        "singleValueExtendedProperties": [
+            {
+                "id": SearchMessagesAction.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY,
+                "value": "00000000-0000-4000-8000-000000000001",
+            }
+        ],
+    }
+
+    with requests_mock.Mocker() as mock:
+        mock.register_uri(
+            "GET",
+            "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
+            json={"access_token": "foo-token", "token_type": "bearer", "expires_in": 1799},
+        )
+        mock.register_uri(
+            "GET",
+            "https://graph.microsoft.com/v1.0/users/1111/messages",
+            json={"value": [payload]},
+        )
+
+        action = configured_action(SearchMessagesAction)
+        result = action.run(
+            arguments={
+                "user": "1111",
+                "email_message_id": "<sample-message-id@example.com>",
+                "email_local_id": "00000000-0000-4000-8000-000000000001",
+            }
+        )
+
+        assert result["query_type"] == "combined"
+        assert (
+            result["query_value"]
+            == "email_message_id=<sample-message-id@example.com>;email_local_id=00000000-0000-4000-8000-000000000001"
+        )
 
 
 def test_search_messages_validation_error(configured_action):
@@ -175,6 +271,9 @@ def test_search_messages_by_network_message_id_fallback_on_empty_result(configur
 
         assert len(result["messages"]) == 1
         assert result["messages"][0]["message_id"] == "graph-item-id-1"
+        assert result["message_id"] == "graph-item-id-1"
+        assert result["query_type"] == "email_local_id"
+        assert result["query_value"] == "00000000-0000-4000-8000-000000000001"
         assert len(mock.request_history) == 3
 
 
@@ -217,6 +316,9 @@ def test_search_messages_by_network_message_id_fallback_on_inefficient_filter(co
 
         assert len(result["messages"]) == 1
         assert result["messages"][0]["message_id"] == "graph-item-id-2"
+        assert result["message_id"] == "graph-item-id-2"
+        assert result["query_type"] == "email_local_id"
+        assert result["query_value"] == "00000000-0000-4000-8000-000000000001"
 
 
 def test_search_messages_omits_message_id_when_graph_id_is_not_string(configured_action):
@@ -233,10 +335,62 @@ def test_search_messages_omits_message_id_when_graph_id_is_not_string(configured
         )
 
         action = configured_action(SearchMessagesAction)
+        with pytest.raises(ValueError, match="Unable to resolve a valid string message_id"):
+            action.run(arguments={"user": "1111", "email_message_id": "<sample-message-id@example.com>"})
+
+
+def test_search_messages_returns_empty_selection_when_no_results(configured_action):
+    with requests_mock.Mocker() as mock:
+        mock.register_uri(
+            "GET",
+            "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
+            json={"access_token": "foo-token", "token_type": "bearer", "expires_in": 1799},
+        )
+        mock.register_uri(
+            "GET",
+            "https://graph.microsoft.com/v1.0/users/1111/messages",
+            json={"value": []},
+        )
+
+        action = configured_action(SearchMessagesAction)
         result = action.run(arguments={"user": "1111", "email_message_id": "<sample-message-id@example.com>"})
 
-        assert len(result["messages"]) == 1
-        assert "message_id" not in result["messages"][0]
+        assert result == {
+            "user": "1111",
+            "query_type": "email_message_id",
+            "query_value": "<sample-message-id@example.com>",
+            "messages": [],
+            "message_id": None,
+            "selected_index": None,
+            "selected_message": None,
+            "total_results": 0,
+            "returned_count": 0,
+            "has_more": False,
+        }
+
+
+def test_search_messages_item_index_out_of_range(configured_action):
+    with requests_mock.Mocker() as mock:
+        mock.register_uri(
+            "GET",
+            "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
+            json={"access_token": "foo-token", "token_type": "bearer", "expires_in": 1799},
+        )
+        mock.register_uri(
+            "GET",
+            "https://graph.microsoft.com/v1.0/users/1111/messages",
+            json={"value": [{"id": "graph-item-id-1"}]},
+        )
+
+        action = configured_action(SearchMessagesAction)
+        with pytest.raises(ValueError, match="out of range"):
+            action.run(
+                arguments={
+                    "user": "1111",
+                    "email_message_id": "<sample-message-id@example.com>",
+                    "item_index": 2,
+                }
+            )
 
 
 @pytest.mark.parametrize(

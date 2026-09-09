@@ -37,5 +37,8 @@ class ForwardMessageAction(MicrosoftGraphActionBase):
         return {
             "status": "forwarded",
             "action": "forward_message",
+            "comment": comment,
             "target_message_id": message_id,
+            "user": user_id_or_principal_name,
+            "recipients": recipients,
         }

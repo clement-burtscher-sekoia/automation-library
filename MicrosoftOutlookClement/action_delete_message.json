@@ -1,6 +1,6 @@
 {
   "name": "Delete a message",
-  "description": "Delete a message from the user's mailbox",
+  "description": "The action that deletes a message from the user's mailbox",
   "uuid": "2440c91c-1996-42ae-8ec9-4e1c6df2e8ca",
   "docker_parameters": "action_delete_message",
   "arguments": {
@@ -27,19 +27,24 @@
     "required": [
       "action",
       "status",
-      "target_message_id"
+      "target_message_id",
+      "user"
     ],
     "properties": {
       "action": {
-        "description": "Action technical identifier",
+        "description": "The action technical identifier",
         "type": "string"
       },
       "status": {
-        "description": "Delete execution status",
+        "description": "The execution status",
         "type": "string"
       },
       "target_message_id": {
         "description": "The Microsoft Graph message item ID targeted by the action",
+        "type": "string"
+      },
+      "user": {
+        "description": "The echo of the user identifier used for this action",
         "type": "string"
       }
     }

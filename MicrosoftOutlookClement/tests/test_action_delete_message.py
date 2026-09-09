@@ -20,4 +20,5 @@ def test_delete_message(configured_action):
             "status": "deleted",
             "action": "delete_a_message",
             "target_message_id": "2222",
+            "user": "1111",
         }

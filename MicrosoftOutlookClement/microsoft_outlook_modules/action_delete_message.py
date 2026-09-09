@@ -28,4 +28,5 @@ class DeleteMessageAction(MicrosoftGraphActionBase):
             "status": "deleted",
             "action": "delete_a_message",
             "target_message_id": message_id,
+            "user": user_id_or_principal_name,
         }

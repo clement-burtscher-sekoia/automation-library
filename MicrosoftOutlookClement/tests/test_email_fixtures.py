@@ -6,7 +6,6 @@ from urllib.parse import unquote_plus
 import pytest
 import requests_mock
 
-from microsoft_outlook_modules.action_resolve_message import ResolveMessageAction
 from microsoft_outlook_modules.action_search_messages import SearchMessagesAction
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "mail_samples"
@@ -50,7 +49,7 @@ def test_anonymized_eml_fixtures_do_not_contain_real_domains():
         assert "onmicrosoft.com" not in content
 
 
-def test_anonymized_fixture_headers_map_pertinently_to_search_and_resolve(configured_action):
+def test_anonymized_fixture_headers_map_pertinently_to_search(configured_action):
     message = parse_eml(FIXTURES_DIR / "incoming_sample_anonymized.eml")
     internet_message_id = message["Message-ID"]
     network_message_id = message["X-MS-Exchange-Organization-Network-Message-Id"]
@@ -82,10 +81,10 @@ def test_anonymized_fixture_headers_map_pertinently_to_search_and_resolve(config
                         "value": [
                             {
                                 "id": "graph-item-id-from-fixture",
-                                "internetMessageId": internet_message_id,
+                                "internetMessageId": "<another-id@example.test>",
                                 "singleValueExtendedProperties": [
                                     {
-                                        "id": ResolveMessageAction.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY,
+                                        "id": SearchMessagesAction.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY,
                                         "value": network_message_id,
                                     }
                                 ],
@@ -105,14 +104,13 @@ def test_anonymized_fixture_headers_map_pertinently_to_search_and_resolve(config
         )
         assert search_result["messages"][0]["message_id"] == "graph-item-id-from-fixture"
 
-        resolve_action = configured_action(ResolveMessageAction)
-        resolve_result = resolve_action.run(
+        search_local_result = search_action.run(
             arguments={
                 "user": "1111",
                 "email_local_id": network_message_id,
             }
         )
-        assert resolve_result["message_id"] == "graph-item-id-from-fixture"
+        assert search_local_result["message_id"] == "graph-item-id-from-fixture"
 
         messages_requests = [request for request in mock.request_history if "/users/1111/messages" in request.url]
         assert len(messages_requests) == 2
@@ -120,5 +118,5 @@ def test_anonymized_fixture_headers_map_pertinently_to_search_and_resolve(config
         search_query = unquote_plus(messages_requests[0].url.split("?", maxsplit=1)[1])
         assert f"internetMessageId eq '{internet_message_id}'" in search_query
 
-        resolve_query = unquote_plus(messages_requests[1].url.split("?", maxsplit=1)[1])
-        assert f"ep/value eq '{network_message_id}'" in resolve_query
+        search_local_query = unquote_plus(messages_requests[1].url.split("?", maxsplit=1)[1])
+        assert f"ep/value eq '{network_message_id}'" in search_local_query

@@ -12,10 +12,14 @@ class SearchMessagesArguments(BaseModel):
     email_message_id: str | None = None
     email_local_id: str | None = None
     top: int = Field(default=10, ge=1, le=100)
+    item_index: int = Field(default=0, ge=0)
+    most_recent: bool = False
 
 
 class SearchMessagesAction(MicrosoftGraphActionBase):
     NETWORK_MESSAGE_ID_EXTENDED_PROPERTY = "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId"
+    FALLBACK_PAGE_SIZE = 50
+    FALLBACK_MAX_MESSAGES_SCANNED = 1000
 
     @staticmethod
     def _escape_odata_literal(value: str) -> str:
@@ -33,28 +37,36 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         self, user_id_or_principal_name: str, network_message_id: str, top: int
     ) -> Any:
         escaped_property = self._escape_odata_literal(self.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY)
-        params: dict[str, Any] = {
-            "$top": top,
+        params: dict[str, Any] | None = {
+            "$top": max(top, self.FALLBACK_PAGE_SIZE),
             "$select": "id,internetMessageId,subject,receivedDateTime,from,toRecipients",
             "$expand": "singleValueExtendedProperties(" f"$filter=id eq '{escaped_property}'" ")",
             "$orderby": "receivedDateTime desc",
         }
 
-        response = self.client.get(
-            f"https://graph.microsoft.com/v1.0/users/{user_id_or_principal_name}/messages",
-            params=params,
-            timeout=60,
-        )
-        self.handle_response(response)
+        next_url = f"https://graph.microsoft.com/v1.0/users/{user_id_or_principal_name}/messages"
+        matched_messages: list[dict[str, Any]] = []
+        scanned_messages = 0
 
-        payload = response.json()
-        messages: list[dict[str, Any]] = payload.get("value", [])
-        filtered_messages = [
-            message for message in messages if self._extract_network_message_id(message) == network_message_id
-        ]
+        while next_url and len(matched_messages) < top and scanned_messages < self.FALLBACK_MAX_MESSAGES_SCANNED:
+            response = self.client.get(next_url, params=params, timeout=60)
+            self.handle_response(response)
 
-        payload["value"] = filtered_messages
-        return payload
+            payload = response.json()
+            messages: list[dict[str, Any]] = payload.get("value", [])
+            scanned_messages += len(messages)
+
+            matched_messages.extend(
+                message for message in messages if self._extract_network_message_id(message) == network_message_id
+            )
+
+            next_url = payload.get("@odata.nextLink")
+            params = None
+
+        return {
+            "value": matched_messages[:top],
+            "@odata.nextLink": next_url,
+        }
 
     def run(self, arguments: Any) -> Any:
         validated_arguments = SearchMessagesArguments.model_validate(arguments)
@@ -62,9 +74,21 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         internet_message_id = validated_arguments.email_message_id
         network_message_id = validated_arguments.email_local_id
         top = validated_arguments.top
+        item_index = validated_arguments.item_index
+        most_recent = validated_arguments.most_recent
 
         if not internet_message_id and not network_message_id:
             raise ValueError("Either email_message_id or email_local_id must be provided")
+
+        if internet_message_id and network_message_id:
+            query_type = "combined"
+            query_value = f"email_message_id={internet_message_id};email_local_id={network_message_id}"
+        elif internet_message_id:
+            query_type = "email_message_id"
+            query_value = internet_message_id
+        else:
+            query_type = "email_local_id"
+            query_value = network_message_id
 
         filters: list[str] = []
         if internet_message_id:
@@ -84,6 +108,9 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             "$top": top,
             "$select": "id,internetMessageId,subject,receivedDateTime,from,toRecipients",
         }
+
+        if most_recent:
+            params["$orderby"] = "receivedDateTime desc"
 
         if network_message_id:
             escaped_property = self._escape_odata_literal(self.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY)
@@ -112,9 +139,49 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
 
         messages = payload.get("value", [])
         normalized_messages = cast(list[dict[str, Any]], self._snake_case_keys(messages))
-        for message in normalized_messages:
+        for raw_message, message in zip(messages, normalized_messages):
             raw_message_id = message.pop("id", None)
             if isinstance(raw_message_id, str):
                 message["message_id"] = raw_message_id
 
-        return {"messages": normalized_messages}
+            network_id = self._extract_network_message_id(raw_message)
+            if network_id is not None:
+                message["network_message_id"] = network_id
+
+        has_more = bool(payload.get("@odata.nextLink"))
+        total_results = len(normalized_messages)
+
+        if not normalized_messages:
+            return {
+                "user": user_id_or_principal_name,
+                "query_type": query_type,
+                "query_value": query_value,
+                "messages": [],
+                "message_id": None,
+                "selected_index": None,
+                "selected_message": None,
+                "total_results": 0,
+                "returned_count": 0,
+                "has_more": has_more,
+            }
+
+        if item_index >= total_results:
+            raise ValueError(f"item_index {item_index} is out of range for {total_results} result(s)")
+
+        selected_message = normalized_messages[item_index]
+        resolved_message_id = selected_message.get("message_id")
+        if not isinstance(resolved_message_id, str):
+            raise ValueError("Unable to resolve a valid string message_id from selected message")
+
+        return {
+            "user": user_id_or_principal_name,
+            "query_type": query_type,
+            "query_value": query_value,
+            "messages": normalized_messages,
+            "message_id": resolved_message_id,
+            "selected_index": item_index,
+            "selected_message": selected_message,
+            "total_results": total_results,
+            "returned_count": total_results,
+            "has_more": has_more,
+        }

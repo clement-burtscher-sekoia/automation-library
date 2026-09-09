@@ -25,9 +25,19 @@ def test_send_message(configured_action):
             }
         )
         assert result == {
-            "status": "sent",
             "action": "send_message",
+            "bcc": None,
+            "cc": None,
+            "content_type": "text",
+            "from": "john.doe@example.com",
+            "importance": None,
+            "recipients": ["jane.doe@example.com"],
+            "save_to_sent_items": True,
+            "sender": "john.doe@example.com",
+            "status": "sent",
+            "subject": "Subject",
             "target_message_id": None,
+            "user": "1111",
         }
 
 
@@ -100,9 +110,19 @@ def test_send_message_falls_back_when_response_payload_is_not_usable(configured_
             }
         )
         assert result == {
-            "status": "sent",
             "action": "send_message",
+            "bcc": None,
+            "cc": None,
+            "content_type": "text",
+            "from": "john.doe@example.com",
+            "importance": None,
+            "recipients": ["jane.doe@example.com"],
+            "save_to_sent_items": True,
+            "sender": "john.doe@example.com",
+            "status": "sent",
+            "subject": "Subject",
             "target_message_id": None,
+            "user": "1111",
         }
 
 
@@ -134,6 +154,13 @@ def test_send_message_includes_target_message_id_when_api_returns_id(configured_
         assert result["status"] == "sent"
         assert result["action"] == "send_message"
         assert result["target_message_id"] == "AAMk-123"
+        assert result["content_type"] == "text"
+        assert result["from"] == "john.doe@example.com"
+        assert result["sender"] == "john.doe@example.com"
+        assert result["subject"] == "Subject"
+        assert result["save_to_sent_items"] is True
+        assert result["user"] == "1111"
+        assert result["recipients"] == ["jane.doe@example.com"]
         assert result["custom"] == "value"
 
 
@@ -160,7 +187,17 @@ def test_send_message_handles_plain_value_error_from_json(configured_action):
     )
 
     assert result == {
-        "status": "sent",
         "action": "send_message",
+        "bcc": None,
+        "cc": None,
+        "content_type": "text",
+        "from": "john.doe@example.com",
+        "importance": None,
+        "recipients": ["jane.doe@example.com"],
+        "save_to_sent_items": True,
+        "sender": "john.doe@example.com",
+        "status": "sent",
+        "subject": "Subject",
         "target_message_id": None,
+        "user": "1111",
     }

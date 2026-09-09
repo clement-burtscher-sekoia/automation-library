@@ -17,6 +17,7 @@ def test_get_message(configured_action, get_message_1):
 
         action = configured_action(GetMessageAction)
         result = action.run(arguments={"user": "1111", "message_id": "2222"})
+        assert result["user"] == "1111"
         assert result["message_id"] == get_message_1["id"]
         assert result["internet_message_id"] == get_message_1["internetMessageId"]
         assert result["received_date_time"] == get_message_1["receivedDateTime"]
@@ -53,6 +54,7 @@ def test_get_message_message_id_falls_back_to_input_message_id(configured_action
         action = configured_action(GetMessageAction)
         result = action.run(arguments={"user": "1111", "message_id": "2222"})
         assert result["message_id"] == "2222"
+        assert result["user"] == "1111"
 
 
 @pytest.mark.parametrize(
