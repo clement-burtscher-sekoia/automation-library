@@ -50,12 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Refactor `Search messages` for identifier-resolution playbooks:
+  - rename inputs to `max_messages_to_return` and `return_most_recent_first`
+  - remove legacy `item_index` input to keep a list-oriented selection model
+  - improve `email_local_id` fallback behavior with paginated scanning via `@odata.nextLink`
 - Refactor playbook and workflow tests to use `Search messages` as the source of message selection for Foreach-based flows
-- Improve `Search messages` fallback behavior for `email_local_id` with paginated scanning via `@odata.nextLink`
-- Update `Search messages` input names to `max_messages_to_return` and `return_most_recent_first`
-- Remove legacy `item_index` input from `Search messages` to keep a list-only selection model
 - Allow `message_id` arguments to accept either a string ID or a message object containing `message_id` for `Foreach` operator compatibility
 - Factorize shared action helpers in `MicrosoftGraphActionBase` for `message_id` resolution, recipient generation, and payload cleanup
+- Harmonize action logging messages with a consistent descriptive style and structured key/value context
 
 ### Fixed
 
