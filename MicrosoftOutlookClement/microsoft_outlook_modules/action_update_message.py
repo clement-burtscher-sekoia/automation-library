@@ -7,6 +7,8 @@ from .action_base import MicrosoftGraphActionBase
 
 
 class UpdateMessageArguments(BaseModel):
+    """Represent validated inputs for the update message action."""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     user: str
@@ -22,6 +24,8 @@ class UpdateMessageArguments(BaseModel):
 
     @model_validator(mode="after")
     def validate_at_least_one_update_field(self) -> "UpdateMessageArguments":
+        """Require at least one mutable message field in the payload."""
+
         if all(
             value is None
             for value in (
@@ -40,27 +44,9 @@ class UpdateMessageArguments(BaseModel):
 
 
 class UpdateMessageAction(MicrosoftGraphActionBase):
-    @staticmethod
-    def fill_non_empty(d: dict[str, Any]) -> dict[str, Any]:
-        return {k: v for k, v in d.items() if v is not None}
-
-    @staticmethod
-    def _resolve_message_id(message_id_or_item: str | dict[str, Any]) -> str:
-        if isinstance(message_id_or_item, str):
-            return message_id_or_item
-
-        if isinstance(message_id_or_item, dict):
-            nested_message_id = message_id_or_item.get("message_id")
-            if isinstance(nested_message_id, str):
-                return nested_message_id
-
-        raise ValueError("message_id must be a string or a message object containing a string message_id")
-
-    @staticmethod
-    def generate_recipient(email: str) -> dict[str, Any]:
-        return {"emailAddress": {"name": email, "address": email}}
-
     def run(self, arguments: Any) -> Any:
+        """Execute the update message action and return normalized results."""
+
         validated_arguments = UpdateMessageArguments.model_validate(arguments)
         user_id_or_principal_name = validated_arguments.user
         message_id = self._resolve_message_id(validated_arguments.message_id)
@@ -74,16 +60,40 @@ class UpdateMessageAction(MicrosoftGraphActionBase):
         recipients = validated_arguments.recipients
         importance = validated_arguments.importance
 
-        payload: dict[str, Any] = self.fill_non_empty(
+        updated_fields = [
+            field_name
+            for field_name, value in {
+                "content": content,
+                "bcc": bcc,
+                "cc": cc,
+                "sender": sender,
+                "from": mailbox_owner,
+                "subject": subject,
+                "recipients": recipients,
+                "importance": importance,
+            }.items()
+            if value is not None
+        ]
+        self.log(
+            message=(
+                "Start update message action "
+                f"user={user_id_or_principal_name!r} "
+                f"message_id={message_id!r} "
+                f"updated_fields={updated_fields!r}"
+            ),
+            level="debug",
+        )
+
+        payload: dict[str, Any] = self._drop_none(
             {
                 "body": {"content": content, "contentType": "text"} if content is not None else None,
-                "bccRecipients": [self.generate_recipient(item) for item in bcc] if bcc is not None else None,
-                "ccRecipients": [self.generate_recipient(item) for item in cc] if cc is not None else None,
-                "sender": self.generate_recipient(sender) if sender is not None else None,
-                "from": self.generate_recipient(mailbox_owner) if mailbox_owner is not None else None,
+                "bccRecipients": [self._generate_recipient(item) for item in bcc] if bcc is not None else None,
+                "ccRecipients": [self._generate_recipient(item) for item in cc] if cc is not None else None,
+                "sender": self._generate_recipient(sender) if sender is not None else None,
+                "from": self._generate_recipient(mailbox_owner) if mailbox_owner is not None else None,
                 "subject": subject,
                 "toRecipients": (
-                    [self.generate_recipient(item) for item in recipients] if recipients is not None else None
+                    [self._generate_recipient(item) for item in recipients] if recipients is not None else None
                 ),
                 "importance": importance,
             }
@@ -118,4 +128,13 @@ class UpdateMessageAction(MicrosoftGraphActionBase):
         normalized_result["sender"] = sender
         normalized_result["status"] = "updated"
         normalized_result["message_id"] = resolved_message_id
+        self.log(
+            message=(
+                "Completed update message action "
+                f"user={user_id_or_principal_name!r} "
+                f"message_id={resolved_message_id!r} "
+                f"updated_fields={updated_fields!r}"
+            ),
+            level="debug",
+        )
         return normalized_result

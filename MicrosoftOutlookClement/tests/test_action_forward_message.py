@@ -1,5 +1,5 @@
-import requests_mock
 import pytest
+import requests_mock
 
 from microsoft_outlook_modules.action_forward_message import ForwardMessageAction
 
@@ -55,13 +55,8 @@ def test_forward_message_accepts_message_object_from_foreach(configured_action):
         assert result["target_message_id"] == "2222"
 
 
-def test_forward_message_rejects_message_object_without_message_id(configured_action):
-    action = configured_action(ForwardMessageAction)
-    with pytest.raises(ValueError, match="message_id must be a string or a message object"):
-        action.run(arguments={"user": "1111", "message_id": {"subject": "x"}, "recipients": ["a@b.c"]})
-
-
-def test_forward_message_rejects_non_string_non_object_message_id(configured_action):
+@pytest.mark.parametrize("invalid_message_id", [{"subject": "x"}, 123])
+def test_forward_message_rejects_invalid_message_id_values(configured_action, invalid_message_id):
     _ = configured_action(ForwardMessageAction)
     with pytest.raises(ValueError, match="message_id must be a string or a message object"):
-        ForwardMessageAction._resolve_message_id(123)  # type: ignore[arg-type]
+        ForwardMessageAction._resolve_message_id(invalid_message_id)  # type: ignore[arg-type]

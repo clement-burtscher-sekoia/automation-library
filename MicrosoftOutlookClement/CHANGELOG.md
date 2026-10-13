@@ -54,8 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve `Search messages` fallback behavior for `email_local_id` with paginated scanning via `@odata.nextLink`
 - Update `Search messages` input names to `max_messages_to_return` and `return_most_recent_first`
 - Remove legacy `item_index` input from `Search messages` to keep a list-only selection model
-- Update Foreach playbook mapping to iterate over `messages` and use `node.<foreach>.default.value` as current item
-- Allow `message_id` arguments to accept either a string ID or a message object containing `message_id` for Foreach compatibility
+- Allow `message_id` arguments to accept either a string ID or a message object containing `message_id` for `Foreach` operator compatibility
+- Factorize shared action helpers in `MicrosoftGraphActionBase` for `message_id` resolution, recipient generation, and payload cleanup
 
 ### Fixed
 

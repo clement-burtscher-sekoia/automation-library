@@ -47,16 +47,11 @@ def test_update_message_accepts_message_object_from_foreach(configured_action, m
         assert result["message_id"] == message_2["id"]
 
 
-def test_update_message_rejects_message_object_without_message_id(configured_action):
-    action = configured_action(UpdateMessageAction)
-    with pytest.raises(ValueError, match="message_id must be a string or a message object"):
-        action.run(arguments={"user": "1111", "message_id": {"subject": "x"}, "subject": "Changed Subject"})
-
-
-def test_update_message_rejects_non_string_non_object_message_id(configured_action):
+@pytest.mark.parametrize("invalid_message_id", [{"subject": "x"}, 123])
+def test_update_message_rejects_invalid_message_id_values(configured_action, invalid_message_id):
     _ = configured_action(UpdateMessageAction)
     with pytest.raises(ValueError, match="message_id must be a string or a message object"):
-        UpdateMessageAction._resolve_message_id(123)  # type: ignore[arg-type]
+        UpdateMessageAction._resolve_message_id(invalid_message_id)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(

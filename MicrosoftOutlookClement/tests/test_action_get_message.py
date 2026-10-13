@@ -38,16 +38,11 @@ def test_get_message_accepts_message_object_from_foreach(configured_action, get_
         assert result["message_id"] == get_message_1["id"]
 
 
-def test_get_message_rejects_message_object_without_message_id(configured_action):
-    action = configured_action(GetMessageAction)
-    with pytest.raises(ValueError, match="message_id must be a string or a message object"):
-        action.run(arguments={"user": "1111", "message_id": {"subject": "test"}})
-
-
-def test_get_message_rejects_non_string_non_object_message_id(configured_action):
+@pytest.mark.parametrize("invalid_message_id", [{"subject": "test"}, 123])
+def test_get_message_rejects_invalid_message_id_values(configured_action, invalid_message_id):
     _ = configured_action(GetMessageAction)
     with pytest.raises(ValueError, match="message_id must be a string or a message object"):
-        GetMessageAction._resolve_message_id(123)  # type: ignore[arg-type]
+        GetMessageAction._resolve_message_id(invalid_message_id)  # type: ignore[arg-type]
 
 
 def test_get_message_keeps_non_dict_payload_unchanged(configured_action):

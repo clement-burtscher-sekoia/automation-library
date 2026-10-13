@@ -6,6 +6,8 @@ from .action_base import GraphAPIException, MicrosoftGraphActionBase
 
 
 class SearchMessagesArguments(BaseModel):
+    """Represent validated inputs for the search messages action."""
+
     model_config = ConfigDict(extra="forbid")
 
     user: str
@@ -16,16 +18,22 @@ class SearchMessagesArguments(BaseModel):
 
 
 class SearchMessagesAction(MicrosoftGraphActionBase):
+    """Execute message searches by internet message ID and/or network message ID."""
+
     NETWORK_MESSAGE_ID_EXTENDED_PROPERTY = "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId"
     FALLBACK_PAGE_SIZE = 50
     FALLBACK_MAX_MESSAGES_SCANNED = 1000
 
     @staticmethod
     def _escape_odata_literal(value: str) -> str:
+        """Escape single quotes for safe OData string literal usage."""
+
         return value.replace("'", "''")
 
     @staticmethod
     def _extract_network_message_id(message: dict[str, Any]) -> str | None:
+        """Extract the NetworkMessageId from Graph extended properties."""
+
         for prop in message.get("singleValueExtendedProperties", []):
             if prop.get("id") == SearchMessagesAction.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY:
                 value = prop.get("value")
@@ -35,6 +43,8 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
     def _search_by_network_message_id_fallback(
         self, user_id_or_principal_name: str, network_message_id: str, max_messages_to_return: int
     ) -> Any:
+        """Run paginated client-side filtering by network message ID."""
+
         escaped_property = self._escape_odata_literal(self.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY)
         params: dict[str, Any] | None = {
             "$top": max(max_messages_to_return, self.FALLBACK_PAGE_SIZE),
@@ -66,12 +76,25 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             next_url = payload.get("@odata.nextLink")
             params = None
 
+        self.log(
+            message=(
+                "Completed search fallback with client-side filtering "
+                f"user={user_id_or_principal_name!r} "
+                f"scanned_messages={scanned_messages!r} "
+                f"matched_messages={len(matched_messages)!r} "
+                f"has_more={bool(next_url)!r}"
+            ),
+            level="debug",
+        )
+
         return {
             "value": matched_messages[:max_messages_to_return],
             "@odata.nextLink": next_url,
         }
 
     def run(self, arguments: Any) -> Any:
+        """Execute the search messages action and return normalized results."""
+
         validated_arguments = SearchMessagesArguments.model_validate(arguments)
         user_id_or_principal_name = validated_arguments.user
         internet_message_id = validated_arguments.email_message_id
@@ -80,6 +103,10 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         return_most_recent_first = validated_arguments.return_most_recent_first
 
         if not internet_message_id and not network_message_id:
+            self.log(
+                message=("Detected invalid search message arguments " f"user={user_id_or_principal_name!r}"),
+                level="error",
+            )
             raise ValueError("Either email_message_id or email_local_id must be provided")
 
         if internet_message_id and network_message_id:
@@ -91,6 +118,19 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         else:
             query_type = "email_local_id"
             query_value = network_message_id
+
+        self.log(
+            message=(
+                "Start search messages action "
+                f"user={user_id_or_principal_name!r} "
+                f"query_type={query_type!r} "
+                f"max_messages_to_return={max_messages_to_return!r} "
+                f"return_most_recent_first={return_most_recent_first!r}"
+            ),
+            level="debug",
+        )
+
+        used_fallback = False
 
         filters: list[str] = []
         if internet_message_id:
@@ -128,7 +168,15 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             payload = response.json()
         except GraphAPIException as exc:
             if network_message_id and "InefficientFilter" in str(exc):
-                self.log(message="Fallback to client-side NetworkMessageId filtering", level="warning")
+                used_fallback = True
+                self.log(
+                    message=(
+                        "Fell back to client-side filtering after inefficient Graph filter "
+                        f"user={user_id_or_principal_name!r} "
+                        f"max_messages_to_return={max_messages_to_return!r}"
+                    ),
+                    level="warning",
+                )
                 payload = self._search_by_network_message_id_fallback(
                     user_id_or_principal_name, network_message_id, max_messages_to_return
                 )
@@ -136,7 +184,15 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                 raise
 
         if network_message_id and not payload.get("value"):
-            self.log(message="No results with NetworkMessageId filter, retrying with fallback", level="warning")
+            used_fallback = True
+            self.log(
+                message=(
+                    "Fell back to client-side filtering after empty Graph results "
+                    f"user={user_id_or_principal_name!r} "
+                    f"max_messages_to_return={max_messages_to_return!r}"
+                ),
+                level="warning",
+            )
             payload = self._search_by_network_message_id_fallback(
                 user_id_or_principal_name,
                 network_message_id,
@@ -161,6 +217,17 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         ]
 
         if not normalized_messages:
+            self.log(
+                message=(
+                    "Completed search messages action "
+                    f"user={user_id_or_principal_name!r} "
+                    f"total_results={0!r} "
+                    f"returned_count={0!r} "
+                    f"has_more={has_more!r} "
+                    f"used_fallback={used_fallback!r}"
+                ),
+                level="debug",
+            )
             return {
                 "user": user_id_or_principal_name,
                 "query_type": query_type,
@@ -172,6 +239,17 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                 "has_more": has_more,
             }
 
+        self.log(
+            message=(
+                "Completed search messages action "
+                f"user={user_id_or_principal_name!r} "
+                f"total_results={total_results!r} "
+                f"returned_count={total_results!r} "
+                f"has_more={has_more!r} "
+                f"used_fallback={used_fallback!r}"
+            ),
+            level="debug",
+        )
         return {
             "user": user_id_or_principal_name,
             "query_type": query_type,
