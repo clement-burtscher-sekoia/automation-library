@@ -12,8 +12,11 @@
     ],
     "properties": {
       "message_id": {
-        "description": "The Microsoft Graph message item ID",
-        "type": "string"
+        "description": "The Microsoft Graph message item ID, or a message object containing message_id",
+        "type": [
+          "string",
+          "object"
+        ]
       },
       "user": {
         "description": "The user identifier or user principal name (UPN)",

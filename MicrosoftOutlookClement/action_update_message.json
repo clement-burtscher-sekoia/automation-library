@@ -100,8 +100,11 @@
         ]
       },
       "message_id": {
-        "description": "The Microsoft Graph message item ID",
-        "type": "string"
+        "description": "The Microsoft Graph message item ID, or a message object containing message_id",
+        "type": [
+          "string",
+          "object"
+        ]
       },
       "recipients": {
         "description": "The updated list of recipient email addresses",

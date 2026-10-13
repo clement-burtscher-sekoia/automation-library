@@ -29,6 +29,36 @@ def test_update_message(configured_action, message_2):
         assert result["to_recipients"][0]["email_address"]["address"] == "recipient@example.com"
 
 
+def test_update_message_accepts_message_object_from_foreach(configured_action, message_2):
+    with requests_mock.Mocker() as mock:
+        mock.register_uri(
+            "GET",
+            "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
+            json={"access_token": "foo-token", "token_type": "bearer", "expires_in": 1799},
+        )
+        mock.register_uri(
+            "PATCH", "https://graph.microsoft.com/v1.0/users/1111/messages/2222", status_code=200, json=message_2
+        )
+
+        action = configured_action(UpdateMessageAction)
+        result = action.run(
+            arguments={"user": "1111", "message_id": {"message_id": "2222"}, "subject": "Changed Subject"}
+        )
+        assert result["message_id"] == message_2["id"]
+
+
+def test_update_message_rejects_message_object_without_message_id(configured_action):
+    action = configured_action(UpdateMessageAction)
+    with pytest.raises(ValueError, match="message_id must be a string or a message object"):
+        action.run(arguments={"user": "1111", "message_id": {"subject": "x"}, "subject": "Changed Subject"})
+
+
+def test_update_message_rejects_non_string_non_object_message_id(configured_action):
+    _ = configured_action(UpdateMessageAction)
+    with pytest.raises(ValueError, match="message_id must be a string or a message object"):
+        UpdateMessageAction._resolve_message_id(123)  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize(
     "status_code,response_payload",
     [

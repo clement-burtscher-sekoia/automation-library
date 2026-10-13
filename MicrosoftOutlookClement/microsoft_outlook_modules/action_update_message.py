@@ -10,7 +10,7 @@ class UpdateMessageArguments(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     user: str
-    message_id: str
+    message_id: str | dict[str, Any]
     content: str | None = None
     bcc: list[str] | None = None
     cc: list[str] | None = None
@@ -45,13 +45,25 @@ class UpdateMessageAction(MicrosoftGraphActionBase):
         return {k: v for k, v in d.items() if v is not None}
 
     @staticmethod
+    def _resolve_message_id(message_id_or_item: str | dict[str, Any]) -> str:
+        if isinstance(message_id_or_item, str):
+            return message_id_or_item
+
+        if isinstance(message_id_or_item, dict):
+            nested_message_id = message_id_or_item.get("message_id")
+            if isinstance(nested_message_id, str):
+                return nested_message_id
+
+        raise ValueError("message_id must be a string or a message object containing a string message_id")
+
+    @staticmethod
     def generate_recipient(email: str) -> dict[str, Any]:
         return {"emailAddress": {"name": email, "address": email}}
 
     def run(self, arguments: Any) -> Any:
         validated_arguments = UpdateMessageArguments.model_validate(arguments)
         user_id_or_principal_name = validated_arguments.user
-        message_id = validated_arguments.message_id
+        message_id = self._resolve_message_id(validated_arguments.message_id)
 
         content = validated_arguments.content
         bcc = validated_arguments.bcc
