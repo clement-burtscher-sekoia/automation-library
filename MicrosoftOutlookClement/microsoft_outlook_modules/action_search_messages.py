@@ -41,19 +41,27 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         return None
 
     def _search_by_network_message_id_fallback(
-        self, user_id_or_principal_name: str, network_message_id: str, max_messages_to_return: int
+        self,
+        user_id_or_principal_name: str,
+        network_message_id: str,
+        max_messages_to_return: int,
+        return_most_recent_first: bool,
+        internet_message_id: str | None = None,
     ) -> Any:
-        """Run paginated client-side filtering by network message ID."""
+        """Run paginated client-side filtering by network and optional internet message IDs."""
 
         escaped_property = self._escape_odata_literal(self.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY)
-        params: dict[str, Any] | None = {
+        initial_params: dict[str, Any] = {
             "$top": max(max_messages_to_return, self.FALLBACK_PAGE_SIZE),
             "$select": "id,internetMessageId,subject,receivedDateTime,from,toRecipients",
             "$expand": "singleValueExtendedProperties(" f"$filter=id eq '{escaped_property}'" ")",
-            "$orderby": "receivedDateTime desc",
         }
 
+        if return_most_recent_first:
+            initial_params["$orderby"] = "receivedDateTime desc"
+
         next_url = f"https://graph.microsoft.com/v1.0/users/{user_id_or_principal_name}/messages"
+        params: dict[str, Any] | None = initial_params
         matched_messages: list[dict[str, Any]] = []
         scanned_messages = 0
 
@@ -70,7 +78,10 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             scanned_messages += len(messages)
 
             matched_messages.extend(
-                message for message in messages if self._extract_network_message_id(message) == network_message_id
+                message
+                for message in messages
+                if self._extract_network_message_id(message) == network_message_id
+                and (internet_message_id is None or message.get("internetMessageId") == internet_message_id)
             )
 
             next_url = payload.get("@odata.nextLink")
@@ -178,7 +189,11 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                     level="warning",
                 )
                 payload = self._search_by_network_message_id_fallback(
-                    user_id_or_principal_name, network_message_id, max_messages_to_return
+                    user_id_or_principal_name,
+                    network_message_id,
+                    max_messages_to_return,
+                    return_most_recent_first,
+                    internet_message_id,
                 )
             else:
                 raise
@@ -197,6 +212,8 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                 user_id_or_principal_name,
                 network_message_id,
                 max_messages_to_return,
+                return_most_recent_first,
+                internet_message_id,
             )
 
         messages = payload.get("value", [])
