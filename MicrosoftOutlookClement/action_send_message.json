@@ -1,0 +1,184 @@
+{
+  "name": "Send a message",
+  "description": "The action that sends a message from the user's mailbox",
+  "uuid": "9f459310-227f-4341-aaff-d888a22db48c",
+  "docker_parameters": "action_send_message",
+  "arguments": {
+    "title": "ApplicationArguments",
+    "type": "object",
+    "required": [
+      "content",
+      "from",
+      "recipients",
+      "sender",
+      "subject",
+      "user"
+    ],
+    "properties": {
+      "bcc": {
+        "description": "The list of BCC recipient email addresses",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "cc": {
+        "description": "The list of CC recipient email addresses",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "content": {
+        "description": "The plain-text or HTML content of the message",
+        "type": "string"
+      },
+      "content_type": {
+        "description": "The content type of the message body",
+        "type": "string",
+        "default": "text",
+        "enum": ["text", "html"]
+      },
+      "from": {
+        "description": "The mailbox owner email address used in the From header (usually the same as sender)",
+        "type": "string",
+        "format": "email"
+      },
+      "importance": {
+        "description": "The importance level of the message",
+        "type": "string",
+        "enum": ["Low", "Normal", "High"]
+      },
+      "recipients": {
+        "description": "The list of recipient email addresses",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "save_to_sent_items": {
+        "description": "The setting that controls whether the message is saved in Sent Items",
+        "type": "boolean",
+        "default": true
+      },
+      "sender": {
+        "description": "The sender email address (usually the same as mailbox owner)",
+        "type": "string",
+        "format": "email"
+      },
+      "subject": {
+        "description": "The subject of the message",
+        "type": "string"
+      },
+      "user": {
+        "description": "The user identifier or user principal name (UPN)",
+        "type": "string"
+      }
+    }
+  },
+  "results": {
+    "title": "SendMessageResults",
+    "type": "object",
+    "required": [
+      "action",
+      "recipients",
+      "status",
+      "target_message_id",
+      "user"
+    ],
+    "properties": {
+      "action": {
+        "description": "The action technical identifier",
+        "type": "string"
+      },
+      "bcc": {
+        "description": "The list of BCC recipient email addresses used by the action",
+        "type": [
+          "array",
+          "null"
+        ],
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "cc": {
+        "description": "The list of CC recipient email addresses used by the action",
+        "type": [
+          "array",
+          "null"
+        ],
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "content_type": {
+        "description": "The content type of the message body used by the action",
+        "type": "string",
+        "enum": [
+          "text",
+          "html"
+        ]
+      },
+      "from": {
+        "description": "The mailbox owner email address used in the From header",
+        "type": "string",
+        "format": "email"
+      },
+      "importance": {
+        "description": "The importance level of the message used by the action",
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "Low",
+          "Normal",
+          "High",
+          null
+        ]
+      },
+      "recipients": {
+        "description": "The recipient email addresses used by the action",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "save_to_sent_items": {
+        "description": "The setting that controls whether the message is saved in Sent Items",
+        "type": "boolean"
+      },
+      "sender": {
+        "description": "The sender email address used by the action",
+        "type": "string",
+        "format": "email"
+      },
+      "status": {
+        "description": "The execution status",
+        "type": "string"
+      },
+      "subject": {
+        "description": "The subject of the message used by the action",
+        "type": "string"
+      },
+      "target_message_id": {
+        "description": "The Microsoft Graph message item ID targeted by the action",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "user": {
+        "description": "The echo of the user identifier used for this action",
+        "type": "string"
+      }
+    }
+  },
+  "slug": "send_message"
+}
