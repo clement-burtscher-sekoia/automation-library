@@ -40,22 +40,24 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                 return value if isinstance(value, str) else None
         return None
 
-    def _search_by_network_message_id_fallback(
+    def _search_messages_fallback(
         self,
         user_id_or_principal_name: str,
-        network_message_id: str,
         max_messages_to_return: int,
         return_most_recent_first: bool,
+        network_message_id: str | None = None,
         internet_message_id: str | None = None,
     ) -> Any:
-        """Run paginated client-side filtering by network and optional internet message IDs."""
+        """Run paginated client-side filtering by optional network/internet message IDs."""
 
         escaped_property = self._escape_odata_literal(self.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY)
         initial_params: dict[str, Any] = {
             "$top": max(max_messages_to_return, self.FALLBACK_PAGE_SIZE),
             "$select": "id,internetMessageId,subject,receivedDateTime,from,toRecipients",
-            "$expand": "singleValueExtendedProperties(" f"$filter=id eq '{escaped_property}'" ")",
         }
+
+        if network_message_id:
+            initial_params["$expand"] = "singleValueExtendedProperties(" f"$filter=id eq '{escaped_property}'" ")"
 
         if return_most_recent_first:
             initial_params["$orderby"] = "receivedDateTime desc"
@@ -80,7 +82,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             matched_messages.extend(
                 message
                 for message in messages
-                if self._extract_network_message_id(message) == network_message_id
+                if (network_message_id is None or self._extract_network_message_id(message) == network_message_id)
                 and (internet_message_id is None or message.get("internetMessageId") == internet_message_id)
             )
 
@@ -144,6 +146,10 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         used_fallback = False
 
         filters: list[str] = []
+        if return_most_recent_first:
+            # Graph requires the orderby property to be in filter and before other predicates.
+            filters.append("receivedDateTime ge 1900-01-01T00:00:00Z")
+
         if internet_message_id:
             escaped_internet_message_id = self._escape_odata_literal(internet_message_id)
             filters.append(f"internetMessageId eq '{escaped_internet_message_id}'")
@@ -178,7 +184,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             self.handle_response(response)
             payload = response.json()
         except GraphAPIException as exc:
-            if network_message_id and "InefficientFilter" in str(exc):
+            if "InefficientFilter" in str(exc):
                 used_fallback = True
                 self.log(
                     message=(
@@ -188,17 +194,17 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                     ),
                     level="warning",
                 )
-                payload = self._search_by_network_message_id_fallback(
+                payload = self._search_messages_fallback(
                     user_id_or_principal_name,
-                    network_message_id,
                     max_messages_to_return,
                     return_most_recent_first,
+                    network_message_id,
                     internet_message_id,
                 )
             else:
                 raise
 
-        if network_message_id and not payload.get("value"):
+        if network_message_id and not payload.get("value") and not used_fallback:
             used_fallback = True
             self.log(
                 message=(
@@ -208,11 +214,11 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                 ),
                 level="warning",
             )
-            payload = self._search_by_network_message_id_fallback(
+            payload = self._search_messages_fallback(
                 user_id_or_principal_name,
-                network_message_id,
                 max_messages_to_return,
                 return_most_recent_first,
+                network_message_id,
                 internet_message_id,
             )
 

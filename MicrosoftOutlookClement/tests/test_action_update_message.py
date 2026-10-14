@@ -5,7 +5,15 @@ from pydantic import ValidationError
 from microsoft_outlook_modules.action_update_message import UpdateMessageAction
 
 
-def test_update_message(configured_action, message_2):
+@pytest.mark.parametrize(
+    "message_id_input",
+    [
+        "2222",
+        {"message_id": "2222"},
+    ],
+    ids=["string_message_id", "foreach_message_object"],
+)
+def test_update_message(configured_action, message_2, message_id_input):
     with requests_mock.Mocker() as mock:
         mock.register_uri(
             "GET",
@@ -17,7 +25,7 @@ def test_update_message(configured_action, message_2):
         )
 
         action = configured_action(UpdateMessageAction)
-        result = action.run(arguments={"user": "1111", "message_id": "2222", "subject": "Changed Subject"})
+        result = action.run(arguments={"user": "1111", "message_id": message_id_input, "subject": "Changed Subject"})
         assert result["user"] == "1111"
         assert result["action"] == "update_message"
         assert result["status"] == "updated"
@@ -27,24 +35,6 @@ def test_update_message(configured_action, message_2):
         assert result["internet_message_id"] == message_2["internetMessageId"]
         assert result["received_date_time"] == message_2["receivedDateTime"]
         assert result["to_recipients"][0]["email_address"]["address"] == "recipient@example.com"
-
-
-def test_update_message_accepts_message_object_from_foreach(configured_action, message_2):
-    with requests_mock.Mocker() as mock:
-        mock.register_uri(
-            "GET",
-            "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
-            json={"access_token": "foo-token", "token_type": "bearer", "expires_in": 1799},
-        )
-        mock.register_uri(
-            "PATCH", "https://graph.microsoft.com/v1.0/users/1111/messages/2222", status_code=200, json=message_2
-        )
-
-        action = configured_action(UpdateMessageAction)
-        result = action.run(
-            arguments={"user": "1111", "message_id": {"message_id": "2222"}, "subject": "Changed Subject"}
-        )
-        assert result["message_id"] == message_2["id"]
 
 
 @pytest.mark.parametrize("invalid_message_id", [{"subject": "x"}, 123])
