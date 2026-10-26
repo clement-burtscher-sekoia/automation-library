@@ -67,7 +67,10 @@ class SendMessageAction(MicrosoftGraphActionBase):
         if importance:
             message["importance"] = importance
 
-        payload: dict[str, Any] = {"message": message, "saveToSentItems": save_to_sent_items}
+        payload: dict[str, Any] = {
+            "message": message,
+            "saveToSentItems": save_to_sent_items,
+        }
 
         response = self.client.post(
             f"https://graph.microsoft.com/v1.0/users/{user_id_or_principal_name}/sendMail",
@@ -96,7 +99,6 @@ class SendMessageAction(MicrosoftGraphActionBase):
             level="debug",
         )
         return {
-            **response_data,
             "status": "sent",
             "action": "send_message",
             "bcc": bcc,

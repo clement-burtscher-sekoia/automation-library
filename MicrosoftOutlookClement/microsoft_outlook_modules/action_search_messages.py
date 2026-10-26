@@ -2,7 +2,7 @@ from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .action_base import GraphAPIException, MicrosoftGraphActionBase
+from .action_base import GraphAPIError, MicrosoftGraphActionBase
 
 
 class SearchMessagesArguments(BaseModel):
@@ -23,6 +23,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
     NETWORK_MESSAGE_ID_EXTENDED_PROPERTY = "String {41F28F13-83F4-4114-A584-EEDB5A6B0BFF} Name NetworkMessageId"
     FALLBACK_PAGE_SIZE = 50
     FALLBACK_MAX_MESSAGES_SCANNED = 1000
+    FALLBACK_MAX_PAGE_REQUESTS = 100
 
     @staticmethod
     def _escape_odata_literal(value: str) -> str:
@@ -57,7 +58,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         }
 
         if network_message_id:
-            initial_params["$expand"] = "singleValueExtendedProperties(" f"$filter=id eq '{escaped_property}'" ")"
+            initial_params["$expand"] = f"singleValueExtendedProperties($filter=id eq '{escaped_property}')"
 
         if return_most_recent_first:
             initial_params["$orderby"] = "receivedDateTime desc"
@@ -66,22 +67,43 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         params: dict[str, Any] | None = initial_params
         matched_messages: list[dict[str, Any]] = []
         scanned_messages = 0
+        scan_limit_reached = False
+        requested_pages = 0
+        seen_next_links: set[str] = set()
 
         while (
             next_url
             and len(matched_messages) < max_messages_to_return
             and scanned_messages < self.FALLBACK_MAX_MESSAGES_SCANNED
+            and requested_pages < self.FALLBACK_MAX_PAGE_REQUESTS
         ):
+            if next_url in seen_next_links:
+                self.log(
+                    message=(
+                        "Stopping search fallback due to repeated continuation URL "
+                        f"user={user_id_or_principal_name!r} "
+                        f"next_url={next_url!r}"
+                    ),
+                    level="warning",
+                )
+                break
+            seen_next_links.add(next_url)
+            requested_pages += 1
+
             response = self.client.get(next_url, params=params, timeout=60)
             self.handle_response(response)
 
             payload = response.json()
             messages: list[dict[str, Any]] = payload.get("value", [])
-            scanned_messages += len(messages)
+            remaining_budget = self.FALLBACK_MAX_MESSAGES_SCANNED - scanned_messages
+            messages_to_scan = messages[:remaining_budget]
+            if len(messages_to_scan) < len(messages):
+                scan_limit_reached = True
+            scanned_messages += len(messages_to_scan)
 
             matched_messages.extend(
                 message
-                for message in messages
+                for message in messages_to_scan
                 if (network_message_id is None or self._extract_network_message_id(message) == network_message_id)
                 and (internet_message_id is None or message.get("internetMessageId") == internet_message_id)
             )
@@ -89,13 +111,29 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             next_url = payload.get("@odata.nextLink")
             params = None
 
+            if not messages_to_scan and next_url:
+                self.log(
+                    message=(
+                        "Stopping search fallback due to empty page with continuation URL "
+                        f"user={user_id_or_principal_name!r}"
+                    ),
+                    level="warning",
+                )
+                break
+
+        if scanned_messages >= self.FALLBACK_MAX_MESSAGES_SCANNED and bool(next_url):
+            scan_limit_reached = True
+
+        fallback_has_more = bool(next_url) or len(matched_messages) > max_messages_to_return
+
         self.log(
             message=(
                 "Completed search fallback with client-side filtering "
                 f"user={user_id_or_principal_name!r} "
                 f"scanned_messages={scanned_messages!r} "
                 f"matched_messages={len(matched_messages)!r} "
-                f"has_more={bool(next_url)!r}"
+                f"has_more={fallback_has_more!r} "
+                f"scan_limit_reached={scan_limit_reached!r}"
             ),
             level="debug",
         )
@@ -103,6 +141,8 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         return {
             "value": matched_messages[:max_messages_to_return],
             "@odata.nextLink": next_url,
+            "fallback_has_more": fallback_has_more,
+            "scan_limit_reached": scan_limit_reached,
         }
 
     def run(self, arguments: Any) -> Any:
@@ -110,14 +150,14 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
 
         validated_arguments = SearchMessagesArguments.model_validate(arguments)
         user_id_or_principal_name = validated_arguments.user
-        internet_message_id = validated_arguments.email_message_id
-        network_message_id = validated_arguments.email_local_id
+        internet_message_id = validated_arguments.email_message_id or None
+        network_message_id = validated_arguments.email_local_id or None
         max_messages_to_return = validated_arguments.max_messages_to_return
         return_most_recent_first = validated_arguments.return_most_recent_first
 
         if not internet_message_id and not network_message_id:
             self.log(
-                message=("Detected invalid search message arguments " f"user={user_id_or_principal_name!r}"),
+                message=(f"Detected invalid search message arguments user={user_id_or_principal_name!r}"),
                 level="error",
             )
             raise ValueError("Either email_message_id or email_local_id must be provided")
@@ -129,6 +169,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             query_type = "email_message_id"
             query_value = internet_message_id
         else:
+            assert network_message_id is not None
             query_type = "email_local_id"
             query_value = network_message_id
 
@@ -144,6 +185,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         )
 
         used_fallback = False
+        scan_limit_reached = False
 
         filters: list[str] = []
         if return_most_recent_first:
@@ -173,7 +215,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
 
         if network_message_id:
             escaped_property = self._escape_odata_literal(self.NETWORK_MESSAGE_ID_EXTENDED_PROPERTY)
-            params["$expand"] = "singleValueExtendedProperties(" f"$filter=id eq '{escaped_property}'" ")"
+            params["$expand"] = f"singleValueExtendedProperties($filter=id eq '{escaped_property}')"
 
         try:
             response = self.client.get(
@@ -183,7 +225,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             )
             self.handle_response(response)
             payload = response.json()
-        except GraphAPIException as exc:
+        except GraphAPIError as exc:
             if "InefficientFilter" in str(exc):
                 used_fallback = True
                 self.log(
@@ -201,6 +243,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                     network_message_id,
                     internet_message_id,
                 )
+                scan_limit_reached = bool(payload.get("scan_limit_reached"))
             else:
                 raise
 
@@ -221,6 +264,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                 network_message_id,
                 internet_message_id,
             )
+            scan_limit_reached = bool(payload.get("scan_limit_reached"))
 
         messages = payload.get("value", [])
         normalized_messages = cast(list[dict[str, Any]], self._snake_case_keys(messages))
@@ -233,7 +277,10 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             if network_id is not None:
                 message["network_message_id"] = network_id
 
-        has_more = bool(payload.get("@odata.nextLink"))
+        if used_fallback:
+            has_more = bool(payload.get("fallback_has_more"))
+        else:
+            has_more = bool(payload.get("@odata.nextLink"))
         total_results = len(normalized_messages)
         message_ids = [
             message["message_id"] for message in normalized_messages if isinstance(message.get("message_id"), str)
@@ -247,7 +294,8 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                     f"total_results={0!r} "
                     f"returned_count={0!r} "
                     f"has_more={has_more!r} "
-                    f"used_fallback={used_fallback!r}"
+                    f"used_fallback={used_fallback!r} "
+                    f"scan_limit_reached={scan_limit_reached!r}"
                 ),
                 level="debug",
             )
@@ -260,6 +308,7 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                 "total_results": 0,
                 "returned_count": 0,
                 "has_more": has_more,
+                "scan_limit_reached": scan_limit_reached,
             }
 
         self.log(
@@ -269,7 +318,8 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
                 f"total_results={total_results!r} "
                 f"returned_count={total_results!r} "
                 f"has_more={has_more!r} "
-                f"used_fallback={used_fallback!r}"
+                f"used_fallback={used_fallback!r} "
+                f"scan_limit_reached={scan_limit_reached!r}"
             ),
             level="debug",
         )
@@ -282,4 +332,5 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             "total_results": total_results,
             "returned_count": total_results,
             "has_more": has_more,
+            "scan_limit_reached": scan_limit_reached,
         }

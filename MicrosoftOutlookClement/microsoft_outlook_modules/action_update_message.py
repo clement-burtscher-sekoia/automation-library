@@ -86,11 +86,11 @@ class UpdateMessageAction(MicrosoftGraphActionBase):
 
         payload: dict[str, Any] = self._drop_none(
             {
-                "body": {"content": content, "contentType": "text"} if content is not None else None,
-                "bccRecipients": [self._generate_recipient(item) for item in bcc] if bcc is not None else None,
-                "ccRecipients": [self._generate_recipient(item) for item in cc] if cc is not None else None,
-                "sender": self._generate_recipient(sender) if sender is not None else None,
-                "from": self._generate_recipient(mailbox_owner) if mailbox_owner is not None else None,
+                "body": ({"content": content, "contentType": "text"} if content is not None else None),
+                "bccRecipients": ([self._generate_recipient(item) for item in bcc] if bcc is not None else None),
+                "ccRecipients": ([self._generate_recipient(item) for item in cc] if cc is not None else None),
+                "sender": (self._generate_recipient(sender) if sender is not None else None),
+                "from": (self._generate_recipient(mailbox_owner) if mailbox_owner is not None else None),
                 "subject": subject,
                 "toRecipients": (
                     [self._generate_recipient(item) for item in recipients] if recipients is not None else None
@@ -122,10 +122,12 @@ class UpdateMessageAction(MicrosoftGraphActionBase):
         normalized_result["bcc"] = bcc
         normalized_result["cc"] = cc
         normalized_result["importance"] = importance
-        normalized_result["original_from"] = mailbox_owner
-        normalized_result["original_subject"] = subject
         normalized_result["recipients"] = recipients
-        normalized_result["sender"] = sender
+        normalized_result.setdefault("from", None)
+        normalized_result.setdefault("sender", None)
+        normalized_result["updated_from"] = mailbox_owner
+        normalized_result["updated_subject"] = subject
+        normalized_result["updated_sender"] = sender
         normalized_result["status"] = "updated"
         normalized_result["message_id"] = resolved_message_id
         self.log(
