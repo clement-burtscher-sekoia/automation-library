@@ -3,7 +3,7 @@
 # module folder in isolated workspace contexts.
 
 [tools]
-python = "3.14"
+python = "3.12"
 
 [env]
 _.python.venv = { path = ".venv", create = false }

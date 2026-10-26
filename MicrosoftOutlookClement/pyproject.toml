@@ -3,7 +3,7 @@ name = "automation-module-microsoft-outlook"
 version = "0.0"
 description = ""
 authors = []
-requires-python = ">=3.14,<4"
+requires-python = ">=3.12,<4"
 dependencies = [
     "pydantic>=2.9.2,<3",
     "sekoia-automation-sdk>=1.27.0,<2",
@@ -27,7 +27,7 @@ default-groups = ["dev", "lint"]
 
 [tool.ruff]
 line-length = 119
-target-version = "py314"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["A", "ARG", "E", "F", "I", "N", "RUF", "UP", "W"]
@@ -36,7 +36,7 @@ select = ["A", "ARG", "E", "F", "I", "N", "RUF", "UP", "W"]
 "tests/*" = ["ARG"]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.12"
 files = ["tests", "microsoft_outlook_modules", "main.py"]
 mypy_path = "."
 exclude = "(^|/)\\.venv/|(^|/)\\.pytest_cache/|(^|/)\\.tmp/"
