@@ -2,8 +2,8 @@ FROM python:3.14-bookworm
 
 WORKDIR /app
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Install uv without relying on GHCR access
+RUN pip install --no-cache-dir uv
 
 # Install dependencies
 COPY pyproject.toml uv.lock /app/
