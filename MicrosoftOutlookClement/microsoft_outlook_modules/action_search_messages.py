@@ -68,27 +68,25 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
         matched_messages: list[dict[str, Any]] = []
         scanned_messages = 0
         scan_limit_reached = False
-        requested_pages = 0
+        page_requests = 0
         seen_next_links: set[str] = set()
 
         while (
             next_url
             and len(matched_messages) < max_messages_to_return
             and scanned_messages < self.FALLBACK_MAX_MESSAGES_SCANNED
-            and requested_pages < self.FALLBACK_MAX_PAGE_REQUESTS
         ):
-            if next_url in seen_next_links:
+            page_requests += 1
+            if page_requests > self.FALLBACK_MAX_PAGE_REQUESTS:
                 self.log(
                     message=(
-                        "Stopping search fallback due to repeated continuation URL "
+                        "Stopped search fallback after page request cap "
                         f"user={user_id_or_principal_name!r} "
-                        f"next_url={next_url!r}"
+                        f"page_requests={page_requests!r}"
                     ),
                     level="warning",
                 )
                 break
-            seen_next_links.add(next_url)
-            requested_pages += 1
 
             response = self.client.get(next_url, params=params, timeout=60)
             self.handle_response(response)
@@ -109,17 +107,31 @@ class SearchMessagesAction(MicrosoftGraphActionBase):
             )
 
             next_url = payload.get("@odata.nextLink")
-            params = None
-
             if not messages_to_scan and next_url:
                 self.log(
                     message=(
-                        "Stopping search fallback due to empty page with continuation URL "
-                        f"user={user_id_or_principal_name!r}"
+                        "Stopped search fallback due to empty page with continuation "
+                        f"user={user_id_or_principal_name!r} "
+                        f"page_requests={page_requests!r}"
                     ),
                     level="warning",
                 )
                 break
+
+            if next_url:
+                if next_url in seen_next_links:
+                    self.log(
+                        message=(
+                            "Stopped search fallback due to repeated continuation link "
+                            f"user={user_id_or_principal_name!r} "
+                            f"next_link={next_url!r}"
+                        ),
+                        level="warning",
+                    )
+                    break
+                seen_next_links.add(next_url)
+
+            params = None
 
         if scanned_messages >= self.FALLBACK_MAX_MESSAGES_SCANNED and bool(next_url):
             scan_limit_reached = True
