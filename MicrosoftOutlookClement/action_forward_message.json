@@ -1,0 +1,82 @@
+{
+  "name": "Forward a message",
+  "description": "The action that forwards a message from the user's mailbox",
+  "uuid": "2c7069e7-3944-4e3d-987c-27bbd455a762",
+  "docker_parameters": "action_forward_message",
+  "arguments": {
+    "title": "ApplicationArguments",
+    "type": "object",
+    "required": [
+      "message_id",
+      "recipients",
+      "user"
+    ],
+    "properties": {
+      "comment": {
+        "description": "The optional comment included in the forwarded message",
+        "type": "string"
+      },
+      "message_id": {
+        "description": "The Microsoft Graph message item ID, or a message object containing message_id",
+        "type": [
+          "string",
+          "object"
+        ]
+      },
+      "recipients": {
+        "description": "The list of recipient email addresses",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "user": {
+        "description": "The user identifier or user principal name (UPN)",
+        "type": "string"
+      }
+    }
+  },
+  "results": {
+    "title": "ForwardMessageResults",
+    "type": "object",
+    "required": [
+      "action",
+      "recipients",
+      "status",
+      "target_message_id",
+      "user"
+    ],
+    "properties": {
+      "action": {
+        "description": "The action technical identifier",
+        "type": "string"
+      },
+      "comment": {
+        "description": "The optional comment included in the forwarded message",
+        "type": "string"
+      },
+      "recipients": {
+        "description": "The recipient email addresses used by the action",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "status": {
+        "description": "The execution status",
+        "type": "string"
+      },
+      "target_message_id": {
+        "description": "The Microsoft Graph message item ID targeted by the action",
+        "type": "string"
+      },
+      "user": {
+        "description": "The echo of the user identifier used for this action",
+        "type": "string"
+      }
+    }
+  },
+  "slug": "forward_message"
+}
