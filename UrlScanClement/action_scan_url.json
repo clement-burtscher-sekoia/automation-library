@@ -1,5 +1,5 @@
 {
-  "uuid": "clem34d7-e5ab-4d71-98de-33222afac2a9",
+  "uuid": "c1e334d7-e5ab-4d71-98de-33222afac2a9",
   "name": "Scan URL",
   "description": "Submit a URL to urlscan.io, wait for the scan and return the verdict, the final page, the contacted infrastructure, the report / screenshot / DOM links and a ready-to-post Markdown comment. Internal addresses are refused before submission.",
   "docker_parameters": "urlscan_scan_url",

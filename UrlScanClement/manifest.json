@@ -26,7 +26,7 @@
   },
   "description": "urlscan.io.clement is a sandbox for the web. It visits submitted URLs in an automated browser, records the domains, IPs, requests and files involved, takes a screenshot, gives a verdict and indexes every scan for search.",
   "name": "urlscan.io.clement",
-  "uuid": "clemdd21-ceab-4450-a3bc-99d1669f2e18",
+  "uuid": "c1e3dd21-ceab-4450-a3bc-99d1669f2e18",
   "slug": "urlscan-clement",
   "version": "1.0.0",
   "categories": [

@@ -1,5 +1,5 @@
 {
-  "uuid": "clem9e3a-d6d6-4ecd-a58f-e78c4f6e26d4",
+  "uuid": "c1e39e3a-d6d6-4ecd-a58f-e78c4f6e26d4",
   "name": "Search",
   "description": "Search existing urlscan.io scans from an indicator (URL, domain, IP or SHA256) or an Elasticsearch Query String query, without spending a scan. Returns one page; paginate with next_search_after.",
   "docker_parameters": "urlscan_search",

@@ -1,5 +1,5 @@
 {
-  "uuid": "clem1927-1351-4977-b48b-63d0cbaec42b",
+  "uuid": "c1e31927-1351-4977-b48b-63d0cbaec42b",
   "name": "Download scan screenshot",
   "description": "Download the PNG screenshot of a finished urlscan.io scan as a file of the playbook run. The file can be downloaded from the playbook run and may show victim data. Fails when urlscan.io did not store the screenshot.",
   "docker_parameters": "urlscan_download_scan_screenshot",
